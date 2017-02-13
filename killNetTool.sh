@@ -1,9 +1,9 @@
 #!/bin/bash - 
 #===============================================================================
 #
-#          FILE: copyAtController.sh
+#          FILE: killNetTool.sh
 # 
-#         USAGE: ./copyAtController.sh 
+#         USAGE: ./killNetTool.sh 
 # 
 #   DESCRIPTION: 
 # 
@@ -13,11 +13,20 @@
 #         NOTES: ---
 #        AUTHOR: Raziel Carvajal-Gomez (RCG), raziel.carvajal@unine.ch
 #  ORGANIZATION: 
-#       CREATED: 02/13/2017 01:27
+#       CREATED: 02/13/2017 15:00
 #      REVISION:  ---
 #===============================================================================
 
 set -o nounset                              # Treat unset variables as an error
-
-files="deploy-net-monitor.sh linksNetTool mapCloudAp monitor-links.sh mapNetTool linksCloudAp killNetTool.sh"
-scp ${files} dionasys-controller:~/georeplicated-sdn-iiun-tucn
+echo "Killing NetTool in BOR"
+ssh bor-nt 'pkill pathload_snd'
+echo -e "\tDONE"
+echo "Killing NetTool in BOR"
+ssh clu-nt 'pkill pathload_snd'
+echo -e "\tDONE"
+echo "Killing NetTool in BOR"
+ssh neu-nt 'pkill pathload_snd'
+echo -e "\tDONE"
+echo "Killing NetTool in BOR"
+ssh lan-nt 'pkill pathload_snd'
+echo -e "\tDONE"
