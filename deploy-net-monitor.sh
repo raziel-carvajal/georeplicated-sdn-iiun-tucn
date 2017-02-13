@@ -51,7 +51,7 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   done
   
   echo "Launching NetTool-cli on site ${floIp}"
-  ssh ${floIp}-nt "rm -fr ${f} STOP"
+  ssh ${floIp}-nt "rm -fr ${f} STOP LOOP-* *.log *.out"
   ssh ${floIp}-nt "source ~/monitor-links.sh ${floIp} ${neiIp} >~/net-c-${floIp}.log &"
   echo -e "\tDONE"
 done
@@ -78,7 +78,7 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   mapLi=`cat mapNetTool | head -${CNTR} | tail -1`
   floIp=`echo ${mapLi} | awk '{print $1}'`
   echo -e "Halting NetTool on node ${floIp}..."
-  ssh ${floIp}-nt "killall pathload_rcv pathload_snd & touch STOP"
+  ssh ${floIp}-nt "pkill pathload_snd & touch STOP"
   scp ${floIp}-nt:~/*.out logs/
   scp ${floIp}-nt:~/*.log logs/
   echo -e "\t\tDONE"

@@ -19,6 +19,7 @@
 
 set -o nounset                              # Treat unset variables as an error
 
+TIMEOUT=30
 node=$1 ; neig=$2
 f="START-${node}"
 echo "Waiting to start NetTool-cli..."
@@ -43,14 +44,21 @@ while [ ! -f STOP ] ; do
   echo "Round [${i}] to measure OWD & ATR"
   for (( CNTR=1; CNTR<=${links}; CNTR+=1 )); do
     endPoIp=`cat ${f} | head -${CNTR} | tail -1`
-    endPoId=`cat mapNetTool | grep ${endPoIp} | awk '{print $1}'`
-    logF="${node}-${endPoId}.out"
-    echo -e "\tGetting data from ${node} to ${endPoId} CNTR[${CNTR}]"
-    ./pathload_1.3.2/pathload_rcv -s ${endPoIp} -o ${logF} -O ${logF} >/dev/null
+    endPoId=`awk '{print $1,$2}' mapNetTool | grep ${endPoIp} | awk '{print $1}'`
+    logF="${endPoId}-${node}.out"
+    echo -e "Getting data from ${node} to ${endPoId} CNTR[${CNTR}]"
+    ./pathload_1.3.2/pathload_rcv -s ${endPoIp} -O ${logF} >/dev/null &
+    sleep ${TIMEOUT}
+    pkill pathload_rcv
     echo -e "\t\tDONE"
   done
   echo "Sending NEXT message to my neighbour"
-  ssh ubuntu@${neig} "touch LOOP-${i}"
+  if [ "${node}" == "bor" ]  ; then
+    let j=i+1
+    ssh ubuntu@${neig} "touch LOOP-${j}"
+  else
+    ssh ubuntu@${neig} "touch LOOP-${i}"
+  fi
   echo -e "\tDONE\nEND of round [${i}]"
   let i=i+1
 done
