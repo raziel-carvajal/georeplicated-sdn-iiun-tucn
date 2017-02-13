@@ -38,7 +38,7 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   echo -e "\tDONE"
   
   echo "Launching NetTool-daemon on site ${floIp}"
-  ssh ${floIp}-nt "./pathload_1.3.2/pathload_snd -i >/dev/null &"
+  ssh ${floIp}-nt "./pathload_1.3.2/pathload_snd -i &>/dev/null &"
   echo -e "\tDONE"
 
   cat linksNetTool | grep ${floIp} >tmp
@@ -52,7 +52,7 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   
   echo "Launching NetTool-cli on site ${floIp}"
   ssh ${floIp}-nt "rm -fr ${f} STOP LOOP-* *.log *.out"
-  ssh ${floIp}-nt "source ~/monitor-links.sh ${floIp} ${neiIp} >~/net-c-${floIp}.log &"
+  ssh ${floIp}-nt "source ~/monitor-links.sh ${floIp} ${neiIp} &>~/net-c-${floIp}.log &"
   echo -e "\tDONE"
 done
 

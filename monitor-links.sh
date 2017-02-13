@@ -46,14 +46,13 @@ while [ ! -f STOP ] ; do
     endPoIp=`cat ${f} | head -${CNTR} | tail -1`
     endPoId=`awk '{print $1,$2}' mapNetTool | grep ${endPoIp} | awk '{print $1}'`
     logF="${endPoId}-${node}.out"
-    echo -e "Getting data from ${node} to ${endPoId} CNTR[${CNTR}]"
-    ./pathload_1.3.2/pathload_rcv -s ${endPoIp} -O ${logF} &>/dev/null &
+    echo -e "Getting data from ${node} to ${endPoId} (IP:${endPoIp}) CNTR[${CNTR}]"
+    source pathload_1.3.2/pathload_rcv -s ${endPoIp} -O ${logF} &>/dev/null &
     pid=$!
     echo "Waiting to kill process ${pid}"
     sleep ${TIMEOUT}
     kill ${pid}
     echo -e "\t\tDONE"
-    sleep 3
   done
   echo "Sending NEXT message to my neighbour"
   if [ "${node}" == "bor" ]  ; then
