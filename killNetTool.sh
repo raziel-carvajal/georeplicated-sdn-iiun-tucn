@@ -20,13 +20,17 @@
 set -o nounset                              # Treat unset variables as an error
 echo "Killing NetTool in BOR"
 ssh bor-nt 'pkill pathload_snd'
+ssh bor-nt 'pkill pathload_rcv'
 echo -e "\tDONE"
 echo "Killing NetTool in CLU"
 ssh clu-nt 'pkill pathload_snd'
+ssh clu-nt 'pkill pathload_rcv'
 echo -e "\tDONE"
 echo "Killing NetTool in NEU"
 ssh neu-nt 'pkill pathload_snd'
+ssh neu-nt 'pkill pathload_rcv'
 echo -e "\tDONE"
 echo "Killing NetTool in LAN"
 ssh lan-nt 'pkill pathload_snd'
+ssh lan-nt 'pkill pathload_rcv'
 echo -e "\tDONE"
