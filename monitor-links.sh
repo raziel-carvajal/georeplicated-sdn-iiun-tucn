@@ -20,7 +20,8 @@
 set -o nounset                              # Treat unset variables as an error
 
 TIMEOUT=30
-node=$1 ; neig=$2
+node=$1
+neig=$2
 f="START-${node}"
 echo "Waiting to start NetTool-cli..."
 while [ ! -f ${f} ] ; do
@@ -29,40 +30,59 @@ done
 echo "START NetTool-cli at node ${node}"
 
 links=`cat ${f} | wc -l`
-rm -f *.out ; i=1
+loD="${node}-logs"
+rm -rf *.out ${loD} ${loD}.tgz
+i=1
 while [ ! -f STOP ] ; do
   sigF="LOOP-${i}"
   while [ ! -f ${sigF} ] ; do
     echo "Waiting for ${sigF}..."
     sleep 5
     if [ -f STOP ] ; then
+      mkdir ${loD}
+      cp *.out ${loD}
+      ~/tar czf ${loD}.tgz ${loD}
       echo "STOP msg was received"
       exit 1
     fi
   done
-  echo -e "\tMessage ${sigF} received"
+  echo "Message ${sigF} received"
   echo "Round [${i}] to measure OWD & ATR"
   for (( CNTR=1; CNTR<=${links}; CNTR+=1 )); do
     endPoIp=`cat ${f} | head -${CNTR} | tail -1`
     endPoId=`awk '{print $1,$2}' mapNetTool | grep ${endPoIp} | awk '{print $1}'`
-    logF="${endPoId}-${node}.out"
-    echo -e "Getting data from ${node} to ${endPoId} (IP:${endPoIp}) CNTR[${CNTR}]"
-    ./pathload_1.3.2/pathload_rcv -s ${endPoIp} -O ${logF} >/dev/null &
-    pid=$!
-    echo "Waiting to kill process ${pid}"
-    sleep ${TIMEOUT}
-    kill ${pid}
-    echo -e "\t\tDONE"
+    atrF="${endPoId}-${node}-${i}-atr.out"
+    owdF="${node}-${endPoId}-${i}-owd.out"
+    echo -e "\tMeasuring ATR and OWD from link ${node}-${endPoId} (end point: ${endPoIp}) CNTR[${CNTR}]"
+    ./pathload_rcv -s ${endPoIp} -o ${atrF} &>~/tmp &
+    atrPid=$!
+    ping ${endPoIp} | perl -nle 'BEGIN {$|++} print scalar(localtime), " ", $_' > ${owdF} &
+    echo "Waiting process [${atrPid}]"
+    sleep 40
+    echo -e "\tContinue..."
+    pkill ping
+    pkill perl
+    kill -9 ${atrPid} &>>~/tmp
+    sleep 25
+    echo -e "\tDONE"
   done
   echo "Sending NEXT message to my neighbour"
+  if [ "${node}" == "neu" ] ; then
+    user="raziel1"
+  else
+    user="raziel"
+  fi
   if [ "${node}" == "bor" ]  ; then
     let j=i+1
-    ssh ubuntu@${neig} "touch LOOP-${j}"
+    ssh ${user}@${neig} "touch LOOP-${j}"
   else
-    ssh ubuntu@${neig} "touch LOOP-${i}"
+    ssh ${user}@${neig} "touch LOOP-${i}"
   fi
   echo -e "\tDONE\nEND of round [${i}]"
   let i=i+1
 done
 
+mkdir ${loD}
+cp *.out ${loD}
+~/tar czf ${loD}.tgz ${loD}
 echo "STOP msg was received"
