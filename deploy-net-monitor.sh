@@ -80,9 +80,9 @@ echo -e "\tDONE\nSending STOP message to nodes"
 mkdir logs
 mkdir logs/owd
 mkdir logs/atr
-#this file it is fetched by the script to deploy one cloud app
+# infinispan.tgz is fetched by the script that deploys one cloud app
 # which for the moment is ISP (via deployISPN.sh)
-mv ycsb.tgz logs/
+mv infinispan.tgz logs/
 
 for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   mapLi=`cat mapNetTool | head -${CNTR} | tail -1`

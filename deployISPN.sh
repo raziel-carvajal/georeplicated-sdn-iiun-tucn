@@ -126,10 +126,10 @@ ssh ${cli}-ca "cd ~/ycsb-infinispan ; ./bin/ycsb.sh ${ycsbRunOpt}"
 echo -e "\tDONE"
 
 echo "Getting ISPN dataset..."
-dat="ycsb.tgz"
-cmd="cd ~/ycsb-infinispan ; rm -fr ${dat} ; rm -fr logs ; mkdir logs ; mv load.out run.out logs ; ~/tar czf ${dat} logs/"
+dat="infinispan"
+cmd="cd ~/ycsb-infinispan ; rm -fr ${dat}.tgz ; rm -fr ${dat} ; mkdir ${dat} ; mv load.out run.out ${dat} ; ~/tar czf ${dat}.tgz ${dat}"
 ssh ${cli}-ca "${cmd}"
-scp ${cli}-ca:~/ycsb-infinispan/${dat} .
+scp ${cli}-ca:~/ycsb-infinispan/${dat}.tgz .
 echo -e "\tDONE"
 
 #TODO KILLING !!!
