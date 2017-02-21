@@ -19,10 +19,12 @@
 
 set -o nounset                              # Treat unset variables as an error
 
-#if [ $# -lt 1 ]; then
-#  echo "USAGE: $0 timeout"
-#  exit 1
-#fi
+if [ ${#} -lt 2 ] ; then
+  echo "USAGE: $0 [Site ID to bootstrap YCSB-ISPN] [Site ID of ISPN-master]"
+  exit 1
+fi
+ycsbCli=${1}
+ycsbMas=${2}
 
 echo "Deploying NetTool..."
 pairsNu=`cat mapNetTool | wc -l`
@@ -67,15 +69,20 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   echo -e "\tDONE"
 done
 
-#TODO launch your script to deploy ISPN
-
-echo -e "NetTool was deployed\nWaiting to stop..."
-#sleep 1800
-sleep 1200
+echo -e "Deploying ISPN and YCSB.."
+./deployISPN.sh ${ycsbCli} ${ycsbMas}
 echo -e "\tDONE\nSending STOP message to nodes"
+
+#echo -e "NetTool was deployed\nWaiting to stop..."
+##sleep 1800
+#sleep 1200
+#echo -e "\tDONE\nSending STOP message to nodes"
 mkdir logs
 mkdir logs/owd
 mkdir logs/atr
+#this file it is fetched by the script to deploy one cloud app
+# which for the moment is ISP (via deployISPN.sh)
+mv ycsb.tgz logs/
 
 for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   mapLi=`cat mapNetTool | head -${CNTR} | tail -1`
@@ -115,4 +122,4 @@ done
 logsN=`date +%F_%H.%M`
 mv logs ${logsN}
 rm -fr tmp START-*
-#tar czf ${logsN}.tgz ${logsN}
+tar czf ${logsN}.tgz ${logsN}

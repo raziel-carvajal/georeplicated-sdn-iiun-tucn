@@ -65,7 +65,8 @@ cfgFd="cfgFiles"
 rm -fr ${cfgFd} 
 mkdir  ${cfgFd} 
 echo "Creating configuration files and launching ISPN servers..."
-ispnSerOpt="-r hotrod -Djgroups.tcpping.timeout=${PING_ISPN} -Djgroups.tcpping.num_initial_members=2"
+#ispnSerOpt="-r hotrod -Djgroups.tcpping.timeout=${PING_ISPN} -Djgroups.tcpping.num_initial_members=2"
+ispnSerOpt="-r hotrod"
 ispnSerOpt=${ispnSerOpt}" -Djgroups.tcpping.initial_hosts"
 for (( cf=1; cf<=${sitN}; cf+=1 )); do
   sitId=`cat mapCloudAp | head -${cf} | tail -1 | awk '{print $1}'`
@@ -120,10 +121,15 @@ echo "YCSB <<load>> phase with options as follows: ${ycsbLoaOpt}"
 ssh ${cli}-ca "cd ~/ycsb-infinispan ; ./bin/ycsb.sh ${ycsbLoaOpt}"
 echo -e "\tDONE"
 
-#TODO Use signals to coordinate YCSB phases
-
 echo "YCSB <<run>> phase with options as follows: ${ycsbRunOpt}"
 ssh ${cli}-ca "cd ~/ycsb-infinispan ; ./bin/ycsb.sh ${ycsbRunOpt}"
+echo -e "\tDONE"
+
+echo "Getting ISPN dataset..."
+dat="ycsb.tgz"
+cmd="cd ~/ycsb-infinispan ; rm -fr ${dat} ; rm -fr logs ; mkdir logs ; mv load.out run.out logs ; ~/tar czf ${dat} logs/"
+ssh ${cli}-ca "${cmd}"
+scp ${cli}-ca:~/ycsb-infinispan/${dat} .
 echo -e "\tDONE"
 
 #TODO KILLING !!!
@@ -137,4 +143,4 @@ for (( cf=1; cf<=${sitN}; cf+=1 )); do
   echo -e "\tDONE"
 done
 
-echo "END OF SCRIPT"
+echo "ISPN EXPERIMENT IS FINISHED"
