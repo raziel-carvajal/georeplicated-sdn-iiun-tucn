@@ -181,7 +181,7 @@
       Default "template" settings, used to create the default cache as well as inherited by all other named caches
       ******************************************************************************************************************
    -->
-   <default name="distributedCache">
+   <default name="asyncCache">
       <!--
          Tunes the locking and concurrency characteristics of the cache.
 
@@ -248,22 +248,28 @@
 
          http://community.jboss.org/wiki/Clusteringmodes
       -->
+      <!--
       <clustering mode="distribution">
 
+         -->
          <!--
             Defines whether to retrieve state on startup.  This is only valud for 'replication' mode.
          -->
+      <!--
          <stateRetrieval
             timeout="240000"
             fetchInMemoryState="false"
             alwaysProvideInMemoryState="false"
          />
 
+         -->
          <!--
             Network calls are synchronous.
          -->
+      <!--
          <sync replTimeout="20000"/>
 
+         -->
          <!--
             Uncomment this for async replication.
          -->
@@ -274,8 +280,10 @@
             replQueueMaxElements="500"
          />
          -->
+      <!--
       </clustering>
 
+         -->
    </default>
 
 
@@ -289,14 +297,11 @@
    -->
 
    <!-- A typical, asynchronously replicated, clustered cache -->
-   <!--
    <namedCache name="asyncCache">
       <clustering mode="replication">
          <async asyncMarshalling="true"/>
       </clustering>
    </namedCache>
-   -->
-
    <!--
       An asynchronous replicated cache making use of a replication queue.  See:
 
@@ -505,7 +510,7 @@
       See:
          http://community.jboss.org/wiki/Clusteringmodes#distribution
    -->
-
+   <!--
    <namedCache name="distributedCache">
       <clustering mode="distribution">
          <sync/>
@@ -520,7 +525,7 @@
          />
       </clustering>
    </namedCache>
-
+   -->
 
    <!--
       A cache making use of custom interceptors, to add custom behavior to each cache invocation.  All custom
