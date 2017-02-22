@@ -19,14 +19,17 @@
 
 set -o nounset                              # Treat unset variables as an error
 
+if [ ${#} -lt 4 ] ; then
+  echo "USAGE: $0 [method] [cloud application] [remote tar file] [destination directory]"
+  exit 1
+fi
+
 method=$1
 cloudA=$2
 remFil=$3 #<< /PATH/file.ext
 dstDir=`dirname ${4}`
 
-if [ ${#} -lt 4 ] ; then
-  exit 1
-fi
+echo "Input: ${method} ${cloudA} ${remFil} ${dstDir}"
 
 #TODO VERIFY STRINGS (VERY IMPORTANT)
 #TODO CHECK IF DESTINATION DIRECTORY EXISTS
@@ -34,9 +37,16 @@ fi
 
 rm -fr tmp ; mkdir tmp ; cd tmp ; origin=`pwd` 
 #TODO CHECK IF REMOTE FILE WITH FULL PATH IS PRESENT
-scp dionasys-controller:${remFil} .
+#scp dionasys-controller:${remFil} .
+
 tarFi=`basename ${remFil}`
-tar xof ${tarFi}
+tarFi="${tarFi}"
+
+echo "${tarFi}"
+
+tar -xzvf "test.tgz"
+echo "END"
+exit 1
 tgetDir=${dstDir}/${method}
 mv ${tarFi} ${tgetDir}
 
