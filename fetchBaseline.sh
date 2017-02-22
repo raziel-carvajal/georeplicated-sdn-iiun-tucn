@@ -28,33 +28,28 @@ method=$1
 cloudA=$2
 remFil=$3 #<< /PATH/file.ext
 dstDir=`dirname ${4}`
-
-echo "Input: ${method} ${cloudA} ${remFil} ${dstDir}"
+compl=`basename ${4}`
+dstDir=${dstDir}/${compl}
+echo -e "Input:\n${method}\n${cloudA}\n${remFil}\n${dstDir}"
 
 #TODO VERIFY STRINGS (VERY IMPORTANT)
 #TODO CHECK IF DESTINATION DIRECTORY EXISTS
 #XXX take into consideration that this tar file contains three datasets: OWD/ATR/(ZK | ISPN)
 
-rm -fr tmp ; mkdir tmp ; cd tmp ; origin=`pwd` 
 #TODO CHECK IF REMOTE FILE WITH FULL PATH IS PRESENT
+rm -fr tmp ; mkdir tmp ; cd tmp ; origin=`pwd` 
 #scp dionasys-controller:${remFil} .
-
 tarFi=`basename ${remFil}`
-tarFi="${tarFi}"
+mv ../${tarFi} .
+tar xof "${tarFi}"
 
-echo "${tarFi}"
-
-tar -xzvf "test.tgz"
-echo "END"
-exit 1
 tgetDir=${dstDir}/${method}
-mv ${tarFi} ${tgetDir}
-
+cp ${tarFi} ${tgetDir}
 i=$((${#tarFi}-4))
-diName=${tar:0:${i}}
+diName=${tarFi:0:${i}}
 
 tmp=${tgetDir}/atr/${diName}
-mkdir ${tmp}
+rm -fr ${tmp} ; mkdir ${tmp}
 mv ${diName}/atr/*.parAtr ${tmp}
 cd ${tgetDir}/atr ; rm -f current
 ln -s ${diName} current
@@ -62,7 +57,7 @@ ln -s ${diName} current
 cd ${origin}
 
 tmp=${tgetDir}/owd/${diName}
-mkdir ${tmp}
+rm -fr ${tmp} ; mkdir ${tmp}
 mv ${diName}/owd/*.parOwd ${tmp}
 cd ${tgetDir}/owd ; rm -f current
 ln -s ${diName} current
@@ -70,10 +65,10 @@ ln -s ${diName} current
 cd ${origin}/${diName}
 tar xof ${cloudA}.tgz
 
-tmp=${tgetDir}/${cloudA}/${diName}
-mkdir ${tmp}
+tmp=${dstDir}/${cloudA}/${diName}
+rm -fr ${tmp} ; mkdir ${tmp}
 mv ${cloudA}/*.out ${tmp}
-cd ${tgetDir}/${cloudA} ; rm -f current
+cd ${dstDir}/${cloudA} ; rm -f current
 ln -s ${diName} current
 
 cd ${origin} ; cd .. ; rm -fr tmp
