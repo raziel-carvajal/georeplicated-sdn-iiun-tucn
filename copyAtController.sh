@@ -22,5 +22,5 @@ set -o nounset                              # Treat unset variables as an error
 files="deploy-net-monitor.sh linksNetTool mapCloudAp monitor-links.sh"
 files=${files}" mapNetTool linksCloudAp killNetTool.sh parse-atr-logs.sh"
 files=${files}" parse-owd-logs.sh deployISPN.sh distributedCache.xml ycsbCacheCfg"
-files=${files}" ycsbBenchCfg"
+files=${files}" ycsbBenchCfg doDistribution.sh"
 scp ${files} dionasys-controller:~/georeplicated-sdn-iiun-tucn

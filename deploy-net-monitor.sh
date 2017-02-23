@@ -104,6 +104,7 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   echo -e "\t\tDONE"
 done
 
+#Get raw data from logs
 for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   mapLi=`cat mapNetTool | head -${CNTR} | tail -1`
   floIp=`echo ${mapLi} | awk '{print $1}'`
@@ -118,6 +119,11 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   mv logs/${floIp}-logs/*.parOwd logs/owd/
   echo -e "\tDONE"
 done
+
+#Do distribution of OWD & ATR from raw data
+./doDistribution.sh ./logs ./logs/atr ./logs/owd
+mv dataset/atr /logs ; mv dataset/owd /logs
+rm -fr dataset
 
 logsN=`date +%F_%H.%M`
 mv logs ${logsN}
