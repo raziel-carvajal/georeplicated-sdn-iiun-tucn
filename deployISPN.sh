@@ -24,18 +24,15 @@ if [ ${#} -lt 2 ] ; then
   exit 1
 fi
 
-cli=${1}
-mas=${2}
+cli=${1} ; mas=${2}
 isT=`grep "${cli}" mapCloudAp | wc -l`
-#max number of milliseconds to wait the orcherstration of views among ISPN servers
-PING_ISPN=5000
 if [ ${isT} -eq 0 ] ; then
-  echo "ERROR: site ${cli} is not in the cluster to deploy ISPN"
+  echo "ERROR: site ${cli} is not in the list of sites to deploy ISPN"
   exit 1
 fi
 isT=`grep "${mas}" mapCloudAp | wc -l`
 if [ ${isT} -eq 0 ] ; then
-  echo "ERROR: site ${mas} is not in the cluster to deploy ISPN"
+  echo "ERROR: site ${mas} is not in the list of sites to deploy ISPN"
   exit 1
 fi
 
@@ -47,23 +44,23 @@ sitN=`cat mapCloudAp | wc -l`
 for (( s=1; s<=${sitN}; s+=1 )); do
   sitId=`cat mapCloudAp | head -${s} | tail -1 | awk '{print $1}'`
   sitIp=`cat mapCloudAp | head -${s} | tail -1 | awk '{print $2}'`
-  echo "s=${s} ; ${sitId} ; ${sitIp}"
   if [ "${sitId}" != "${mas}" ] ; then
     if [ "${sitId}" != "${cli}" ] ; then
       serverStr="${serverStr}${sitIp}[7800],"
     fi
   fi
 done
+
+# Remove last coma from ${serverStr}
 seStLen=$((${#serverStr}-1))
 serList=${serverStr:0:${seStLen}}
 cliList="${masIp}:11222"
+
 echo -e "\tString of ISPN for servers: ${serList}"
 echo -e "\tString of YCSB: ${cliList}"
 echo "DONE"
-
 cfgFd="cfgFiles"
-rm -fr ${cfgFd} 
-mkdir  ${cfgFd} 
+rm -fr ${cfgFd} ; mkdir  ${cfgFd} 
 echo "Creating configuration files and launching ISPN servers..."
 #ispnSerOpt="-r hotrod -Djgroups.tcpping.timeout=${PING_ISPN} -Djgroups.tcpping.num_initial_members=2"
 ispnSerOpt="-r hotrod"
@@ -91,7 +88,7 @@ echo "DONE"
 
 #TODO find a better way to wait until all ISPN servers boostrap
 echo "Waiting for letting ISPN servers to bootstrap"
-sleep 120
+sleep 180
 echo -e "\tDONE"
 
 caCfg="${cfgFd}/distributed-cache.properties"
@@ -132,7 +129,7 @@ ssh ${cli}-ca "${cmd}"
 scp ${cli}-ca:~/ycsb-infinispan/${dat}.tgz .
 echo -e "\tDONE"
 
-#TODO KILLING !!!
+#STOP experiment
 for (( cf=1; cf<=${sitN}; cf+=1 )); do
   sitId=`cat mapCloudAp | head -${cf} | tail -1 | awk '{print $1}'`
   sitIp=`cat mapCloudAp | head -${cf} | tail -1 | awk '{print $2}'`

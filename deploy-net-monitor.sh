@@ -23,13 +23,13 @@ if [ ${#} -lt 2 ] ; then
   echo "USAGE: $0 [Site ID to bootstrap YCSB-ISPN] [Site ID of ISPN-master]"
   exit 1
 fi
-ycsbCli=${1}
-ycsbMas=${2}
+# TODO: check if both peers are in the list of sites for the experiment,
+#     just passed what it is written in deploISPN.sh to this aim
+ycsbCli=${1} ; ycsbMas=${2}
 
 echo "Deploying NetTool..."
 pairsNu=`cat mapNetTool | wc -l`
 rm -fr tmp logs START-*
-
 for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   mapLi=`cat mapNetTool | head -${CNTR} | tail -1`
   floIp=`echo ${mapLi} | awk '{print $1}'`
@@ -73,15 +73,8 @@ echo -e "Deploying ISPN and YCSB.."
 ./deployISPN.sh ${ycsbCli} ${ycsbMas}
 echo -e "\tDONE\nSending STOP message to nodes"
 
-#echo -e "NetTool was deployed\nWaiting to stop..."
-##sleep 1800
-#sleep 1200
-#echo -e "\tDONE\nSending STOP message to nodes"
-mkdir logs
-mkdir logs/owd
-mkdir logs/atr
-# infinispan.tgz is fetched by the script that deploys one cloud app
-# which for the moment is ISP (via deployISPN.sh)
+mkdir logs ; mkdir logs/owd ; mkdir logs/atr
+# infinispan.tgz is fetched by deployISPN.sh
 mv infinispan.tgz logs/
 
 for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
@@ -92,17 +85,25 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   echo -e "\t\tDONE"
 done
 
-echo "Waiting 2m (see monitor-liks.sh:61) just in case one process is still ongoing..."
-sleep 120
-echo -e "\tcontinue\nGetting logs from each site..."
-
-for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
-  mapLi=`cat mapNetTool | head -${CNTR} | tail -1`
-  floIp=`echo ${mapLi} | awk '{print $1}'`
-  echo -e "Fetching dataset of site ${floIp}..."
-  scp ${floIp}-nt:~/${floIp}-logs.tgz logs/
-  echo -e "\t\tDONE"
+echo "Wait until all logs are fetched"
+logsNum=0 ; j=1
+while [ ${logsNum} -lt ${pairsNu} ] ; do
+  echo "Try number [${j}] to fetch all logs"
+  for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
+    mapLi=`cat mapNetTool | head -${CNTR} | tail -1`
+    floIp=`echo ${mapLi} | awk '{print $1}'`
+    if [ ! -f "logs/${floIp}-logs.tgz" ] ; then
+      echo -e "Fetching dataset of site ${floIp}..."
+      scp ${floIp}-nt:~/${floIp}-logs.tgz logs/
+      echo -e "\t\tDONE"
+    else
+      echo -e "\tFile ${floIp}-logs.tgz was fetched already"
+    fi
+  done
+  sleep 5
+  let j=j+1 ; logsNum=`ls logs/*-logs.tgz | wc -l`
 done
+echo "All logs were received"
 
 #Get raw data from logs
 for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do

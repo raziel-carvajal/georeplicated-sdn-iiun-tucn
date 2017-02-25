@@ -19,9 +19,7 @@
 
 set -o nounset                              # Treat unset variables as an error
 
-TIMEOUT=30
-node=$1
-neig=$2
+TIMEOUT=30 ; node=$1 ; neig=$2
 f="START-${node}"
 echo "Waiting to start NetTool-cli..."
 while [ ! -f ${f} ] ; do
@@ -29,17 +27,14 @@ while [ ! -f ${f} ] ; do
 done
 echo "START NetTool-cli at node ${node}"
 
-links=`cat ${f} | wc -l`
-loD="${node}-logs"
-rm -rf *.out ${loD} ${loD}.tgz
-i=1
+links=`cat ${f} | wc -l` ; loD="${node}-logs"
+rm -rf *.out ${loD} ${loD}.tgz ; mkdir ${loD} ; i=1
 while [ ! -f STOP ] ; do
   sigF="LOOP-${i}"
   while [ ! -f ${sigF} ] ; do
     echo "Waiting for ${sigF}..."
     sleep 5
     if [ -f STOP ] ; then
-      mkdir ${loD}
       cp *.out ${loD}
       ~/tar czf ${loD}.tgz ${loD}
       echo "STOP msg was received"
@@ -58,12 +53,11 @@ while [ ! -f STOP ] ; do
     atrPid=$!
     ping ${endPoIp} | perl -nle 'BEGIN {$|++} print scalar(localtime), " ", $_' > ${owdF} &
     echo "Waiting process [${atrPid}]"
-    sleep 40
+    sleep 60
     echo -e "\tContinue..."
-    pkill ping
-    pkill perl
+    pkill ping ; pkill perl
     kill -9 ${atrPid} &>>~/tmp
-    sleep 25
+    sleep 10
     echo -e "\tDONE"
   done
   echo "Sending NEXT message to my neighbour"
