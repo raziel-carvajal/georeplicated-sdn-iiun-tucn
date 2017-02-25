@@ -62,8 +62,8 @@ for (( CNTR=1; CNTR<=${ite}; CNTR+=1 )); do
     for link in `cat tmp` ; do
       finAtrF="${dstD}/atr/${link}.dat"
       finOwdF="${dstD}/owd/${link}.dat"
-      atrF="${atrD}${link}-${CNTR}-atr.parAtr"
-      owdF="${owdD}${link}-${CNTR}-owd.parOwd"
+      atrF="${atrD}/${link}-${CNTR}-atr.parAtr"
+      owdF="${owdD}/${link}-${CNTR}-owd.parOwd"
       if [ ! -f ${owdF} ] ; then
         if [ ! -f ${atrF} ] ; then
           echo "NA point/dataset for both OWD and ATR at iteration ${CNTR} of link ${link}"

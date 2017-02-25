@@ -122,8 +122,9 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
 done
 
 #Do distribution of OWD & ATR from raw data
-./doDistribution.sh ./logs ./logs/atr ./logs/owd
-mv dataset/atr /logs ; mv dataset/owd /logs
+./doDistribution.sh logs logs/atr logs/owd
+rm -fr logs/owd logs/atr
+mv dataset/atr logs ; mv dataset/owd logs
 rm -fr dataset
 
 logsN=`date +%F_%H.%M`

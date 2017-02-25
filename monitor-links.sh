@@ -76,7 +76,6 @@ while [ ! -f STOP ] ; do
   let i=i+1
 done
 
-mkdir ${loD}
 cp *.out ${loD}
 ~/tar czf ${loD}.tgz ${loD}
 echo "STOP msg was received"
