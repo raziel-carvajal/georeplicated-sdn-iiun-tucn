@@ -40,19 +40,18 @@ echo -e "Input:\n${method}\n${cloudA}\n${remFil}\n${dstDir}"
 rm -fr tmp ; mkdir tmp ; cd tmp ; origin=`pwd` 
 scp dionasys-controller:${remFil} .
 tarFi=`basename ${remFil}`
-mv ../${tarFi} .
-tar xof "${tarFi}"
+tar xof ${tarFi}
 
 # XXX this script will work ONLY if ${dstDir} the following SVN directory:
 #     /?/dionasys/WP3/sdn_adaptation/papers/georeplicated_sdn/data/baseline
 tgetDir=${dstDir}/${method}
-cp ${tarFi} ${tgetDir}
+mv ${tarFi} ${tgetDir}
 i=$((${#tarFi}-4))
 diName=${tarFi:0:${i}}
 
 tmp=${tgetDir}/atr/${diName}
 rm -fr ${tmp} ; mkdir ${tmp}
-mv ${diName}/atr/*.parAtr ${tmp}
+mv ${diName}/atr/*.dat ${tmp}
 cd ${tgetDir}/atr ; rm -f current
 ln -s ${diName} current
 
@@ -60,7 +59,7 @@ cd ${origin}
 
 tmp=${tgetDir}/owd/${diName}
 rm -fr ${tmp} ; mkdir ${tmp}
-mv ${diName}/owd/*.parOwd ${tmp}
+mv ${diName}/owd/*.dat ${tmp}
 cd ${tgetDir}/owd ; rm -f current
 ln -s ${diName} current
 
