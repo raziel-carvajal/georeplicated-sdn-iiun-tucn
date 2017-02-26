@@ -131,3 +131,4 @@ logsN=`date +%F_%H.%M`
 mv logs ${logsN}
 rm -fr tmp START-*
 tar czf ${logsN}.tgz ${logsN}
+rm -r ${logsN}
