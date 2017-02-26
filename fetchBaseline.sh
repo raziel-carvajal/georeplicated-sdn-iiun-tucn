@@ -38,11 +38,13 @@ echo -e "Input:\n${method}\n${cloudA}\n${remFil}\n${dstDir}"
 
 #TODO CHECK IF REMOTE FILE WITH FULL PATH IS PRESENT
 rm -fr tmp ; mkdir tmp ; cd tmp ; origin=`pwd` 
-#scp dionasys-controller:${remFil} .
+scp dionasys-controller:${remFil} .
 tarFi=`basename ${remFil}`
 mv ../${tarFi} .
 tar xof "${tarFi}"
 
+# XXX this script will work ONLY if ${dstDir} the following SVN directory:
+#     /?/dionasys/WP3/sdn_adaptation/papers/georeplicated_sdn/data/baseline
 tgetDir=${dstDir}/${method}
 cp ${tarFi} ${tgetDir}
 i=$((${#tarFi}-4))
