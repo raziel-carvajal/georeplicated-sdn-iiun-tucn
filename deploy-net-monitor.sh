@@ -45,11 +45,15 @@ for (( CNTR=1; CNTR<=${sitesNo}; CNTR+=1 )); do
       echo "Launching NetPerf in site: ${site}"
       ssh ${site}-nt-tucn "${cmdAtr} ; ./netperf.sh &>${site}-netPerf.log &"
       echo -e "\tDONE"
+      echo "Launching process to measure OWD in site: ${site}"
+      ssh ${site}-nt-tucn "${cmdOwd} ; ./multicastOWD -p 5000 &>${site}-owd.log &"
+      echo -e "\tDONE"
   fi
-  echo "Launching process to measure OWD in site: ${site}"
-  ssh ${site}-nt-tucn "${cmdOwd} ; ./multicastOWD -p 5000 &>${site}-owd.log &"
-  echo -e "\tDONE"
 done
+
+echo -e "\tLaunching process to measure OWD in Cluj"
+ssh clu-nt-tucn "${cmdOwd} ; ./multicastOWD -s -p 5000 &>${site}-owd.log &"
+echo -e "\tDONE"
 
 echo -e "Waiting until timeout expires"
 let tInSec=${timeout}*60
