@@ -28,54 +28,37 @@ done
 echo "START NetTool-cli at node ${node}"
 
 links=`cat ${f} | wc -l` ; loD="${node}-logs"
-rm -rf *.out ${loD} ${loD}.tgz ; mkdir ${loD} ; i=1
-while [ ! -f STOP ] ; do
-  sigF="LOOP-${i}"
-  while [ ! -f ${sigF} ] ; do
-    echo "Waiting for ${sigF}..."
-    sleep 5
-    if [ -f STOP ] ; then
-      cp *.out ${loD}
-      ~/tar czf ${loD}.tgz ${loD}
-      echo "STOP msg was received"
-      exit 1
-    fi
-  done
-  echo "Message ${sigF} received"
-  echo "Round [${i}] to measure OWD & ATR"
-  for (( CNTR=1; CNTR<=${links}; CNTR+=1 )); do
-    endPoIp=`cat ${f} | head -${CNTR} | tail -1`
-    endPoId=`awk '{print $1,$2}' mapNetTool | grep ${endPoIp} | awk '{print $1}'`
-    atrF="${endPoId}-${node}-${i}-atr.out"
-    owdF="${node}-${endPoId}-${i}-owd.out"
-    echo -e "\tMeasuring ATR and OWD from link ${node}-${endPoId} (end point: ${endPoIp}) CNTR[${CNTR}]"
-    ./pathload_rcv -s ${endPoIp} -o ${atrF} &>~/tmp &
-    atrPid=$!
-    ping ${endPoIp} | perl -nle 'BEGIN {$|++} print scalar(localtime), " ", $_' > ${owdF} &
-    echo "Waiting process [${atrPid}]"
-    sleep 60
-    echo -e "\tContinue..."
-    pkill ping ; pkill perl
-    kill -9 ${atrPid} &>>~/tmp
-    sleep 10
-    echo -e "\tDONE"
-  done
-  echo "Sending NEXT message to my neighbour"
-  if [ "${node}" == "neu" ] ; then
-    user="raziel1"
-  else
-    user="raziel"
-  fi
-  if [ "${node}" == "bor" ]  ; then
-    let j=i+1
-    ssh ${user}@${neig} "touch LOOP-${j}"
-  else
-    ssh ${user}@${neig} "touch LOOP-${i}"
-  fi
-  echo -e "\tDONE\nEND of round [${i}]"
-  let i=i+1
+rm -rf *.out ${loD} ${loD}.tgz pids ; mkdir ${loD} ; touch pids
+for (( CNTR=1; CNTR<=${links}; CNTR+=1 )); do
+  endPoIp=`cat ${f} | head -${CNTR} | tail -1`
+  endPoId=`awk '{print $1,$2}' mapNetTool | grep ${endPoIp} | awk '{print $1}'`
+  atrF="${node}-${endPoId}-atr.out"
+  owdF="${node}-${endPoId}-owd.out"
+  echo -e "\tMeasuring ATR and OWD from link ${node}-${endPoId} (end point: ${endPoIp}) CNTR[${CNTR}]"
+  ./iperf -c ${endPoIp} -t 360 -i 1 &>${atrF} &
+  atrPid=$! ; echo "${atrPid}" >>pids
+  ping ${endPoIp} | perl -nle 'BEGIN {$|++} print scalar(localtime), " ", $_' &> ${owdF} &
+  pinPid=$! ; echo "${pinPid}" >>pids
+  echo -e "\tDONE"
 done
+
+echo "Waiting to receive STOP..."
+while [ ! -f STOP ] ; do
+  sleep 1
+done
+echo -e "\tSTOP msg received"
+
+pidsNo=`cat pids | wc -l`
+for (( CNTR=1; CNTR<=${pidsNo}; CNTR+=1 )); do
+  pid=`cat pids | head -${CNTR} | tail -1`
+  echo "Killing PID: ${pid}"
+  kill -9 ${pid}
+  echo -e "\tDONE"
+done
+
+#killing server
+pkill iperf &>/dev/null &
 
 cp *.out ${loD}
 ~/tar czf ${loD}.tgz ${loD}
-echo "STOP msg was received"
+echo "END of ${0}"

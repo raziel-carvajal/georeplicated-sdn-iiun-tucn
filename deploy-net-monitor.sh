@@ -41,7 +41,8 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   echo -e "\tDONE"
   
   echo "Launching NetTool-daemon on site ${floIp}"
-  ssh ${floIp}-nt "./pathload_snd -i &>~/net-d-${floIp}.log &"
+  #ssh ${floIp}-nt "./pathload_snd -i &>~/net-d-${floIp}.log &"
+  ssh ${floIp}-nt "./iperf -s &>net-d-${floIp}.log &"
   echo -e "\tDONE"
 
   cat linksNetTool | grep ${floIp} >tmp
@@ -63,25 +64,23 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   floIp=`echo ${mapLi} | awk '{print $1}'`
   echo "Send START_MONITORING to site ${floIp}"
   scp START-${floIp} ${floIp}-nt:~/
-  if [ ${CNTR} -eq 1 ] ; then
-    ssh ${floIp}-nt "touch LOOP-1"
-  fi
   echo -e "\tDONE"
 done
 
 echo -e "Deploying ISPN and YCSB.."
 ./deployISPN.sh ${ycsbCli} ${ycsbMas}
+#sleep 180
 echo -e "\tDONE\nSending STOP message to nodes"
 
 mkdir logs ; mkdir logs/owd ; mkdir logs/atr
 # infinispan.tgz is fetched by deployISPN.sh
-mv infinispan.tgz logs/
+#mv infinispan.tgz logs/
 
 for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   mapLi=`cat mapNetTool | head -${CNTR} | tail -1`
   floIp=`echo ${mapLi} | awk '{print $1}'`
   echo -e "Halting NetTool on node ${floIp}..."
-  ssh ${floIp}-nt "pkill pathload_snd & touch STOP"
+  ssh ${floIp}-nt "touch STOP"
   echo -e "\t\tDONE"
 done
 
@@ -114,21 +113,16 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   cd ..
   echo "Parsing dataset of site ${floIp}"
   ./parse-atr-logs.sh logs/${floIp}-logs
+  mv logs/${floIp}-logs/*-atr.dat logs/atr/
   ./parse-owd-logs.sh logs/${floIp}-logs
+  mv logs/${floIp}-logs/*-owd.dat logs/owd/
   mv logs/${floIp}-logs/*.out logs/
-  mv logs/${floIp}-logs/*.parAtr logs/atr/
-  mv logs/${floIp}-logs/*.parOwd logs/owd/
   echo -e "\tDONE"
 done
-
-#Do distribution of OWD & ATR from raw data
-./doDistribution.sh logs logs/atr logs/owd
-rm -fr logs/owd logs/atr
-mv dataset/atr logs ; mv dataset/owd logs
-rm -fr dataset
 
 logsN=`date +%F_%H.%M`
 mv logs ${logsN}
 rm -fr tmp START-*
 tar czf ${logsN}.tgz ${logsN}
 rm -r ${logsN}
+echo "END of script ${0}"

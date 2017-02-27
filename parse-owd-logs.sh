@@ -32,17 +32,13 @@ fi
 
 origin=`pwd`
 cd ${dstD}
-#TODO explain this constant
-LINES=20
-rm -fr *.parOwd
+rm -fr *.dat
 
 for f in `ls *-owd.out` ; do
-
   i=$(( ${#f} - 4 ))
   fiN=${f:0:${i}}
-  dstF="${fiN}".parOwd
-  cat ${f} | tail -${LINES} | awk '{print $12}' | awk -F "=" '{print $2 }' >${dstF}
-  
+  dstF="${fiN}".dat
+  cat ${f} | awk '{print $12}' | awk -F "=" '{print $2 }' >${dstF}
 done
 
 cd ${origin}

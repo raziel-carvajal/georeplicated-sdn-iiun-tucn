@@ -31,32 +31,16 @@ fi
 
 origin=`pwd`
 cd ${dstD}
-strToG="Rmin-Rmax             ::"
-rm -fr tmp* col* *.parAtr
+strToG=".0 sec"
+rm -fr *.dat
 
 for f in `ls *-atr.out` ; do
   i=$(( ${#f} - 4 ))
   fiN=${f:0:${i}}
-  dstF="${fiN}".parAtr
-  
-  grep "${strToG}" ${f} | awk '{print $3}' >tmp
-  lin=`cat tmp | wc -l`
-  if [ ${lin} -gt 0 ] ; then
-    cat tmp | awk -F "-" '{print $1}' >col1
-    cat tmp | awk -F "-" '{print $2}' |  awk -F "Mbps" '{print $1}' >col2
-    fL=`cat col1 | tail -1`
-    sL=`cat col2 | tail -1`
-    bG=`echo "${fL} > ${sL}" | bc`
-    if [ ${bG} -gt 0 ] ; then
-      echo "${fL}" >>${dstF}
-    else
-      echo "${sL}" >>${dstF}
-    fi
-  else
-    echo "NA" >>${dstF}
-  fi
-
+  dstF="${fiN}".dat
+  #header=`grep "${strToG}" ${f} | head | tail -1 | awk '{print $NF}'`
+  #echo "# ${header}" >${dstF}
+  grep "${strToG}" ${f} | awk '{print $(NF - 1) }' >${dstF}
 done
 
-rm -fr tmp* col*
 cd ${origin}
