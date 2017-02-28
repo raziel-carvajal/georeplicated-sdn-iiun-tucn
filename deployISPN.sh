@@ -124,7 +124,8 @@ echo -e "\tDONE"
 
 echo "Getting ISPN dataset..."
 dat="infinispan"
-cmd="cd ~/ycsb-infinispan ; rm -fr ${dat}.tgz ; rm -fr ${dat} ; mkdir ${dat} ; mv load.out run.out ${dat} ; ~/tar czf ${dat}.tgz ${dat}"
+cmd="cd ~/ycsb-infinispan ; rm -fr ${dat}.tgz ; rm -fr ${dat} ; mkdir ${dat}"
+cmd="${cmd} ; mv load.out run.out ${dat} ; ~/tar czf ${dat}.tgz ${dat}"
 ssh ${cli}-ca "${cmd}"
 scp ${cli}-ca:~/ycsb-infinispan/${dat}.tgz .
 echo -e "\tDONE"

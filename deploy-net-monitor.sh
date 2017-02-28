@@ -42,6 +42,7 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   
   echo "Launching NetTool-daemon on site ${floIp}"
   #ssh ${floIp}-nt "./pathload_snd -i &>~/net-d-${floIp}.log &"
+  # Start up server
   ssh ${floIp}-nt "./iperf -s &>net-d-${floIp}.log &"
   echo -e "\tDONE"
 
@@ -87,7 +88,7 @@ done
 echo "Wait until all logs are fetched"
 logsNum=0 ; j=1
 while [ ${logsNum} -lt ${pairsNu} ] ; do
-  echo "Try number [${j}] to fetch all logs"
+  echo "Try numb [${j}] to fetch all logs"
   for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
     mapLi=`cat mapNetTool | head -${CNTR} | tail -1`
     floIp=`echo ${mapLi} | awk '{print $1}'`
