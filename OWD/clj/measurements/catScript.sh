@@ -1,0 +1,2 @@
+/usr/local/MATLAB/R2015a/bin/matlab -nojvm -nodesktop -r "run /usr/local/src/measurements/matlabParseDelayOutputAppend.m; quit"
+scp -i id_rsa measurements/bor-clj.txt measurements/bor-lan.txt measurements/bor-neu.txt measurements/clj-bor.txt measurements/clj-lan.txt measurements/clj-neu.txt measurements/lan-bor.txt measurements/lan-neu.txt measurements/lan-clj.txt measurements/neu-bor.txt measurements/neu-lan.txt measurements/neu-clj.txt measurements/time.txt stack@192.168.100.11:/home/stack/TUCN_Measurements/OWD
