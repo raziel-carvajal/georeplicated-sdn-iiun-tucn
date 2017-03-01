@@ -69,8 +69,8 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
 done
 
 echo -e "Deploying ISPN and YCSB.."
-./deployISPN.sh ${ycsbCli} ${ycsbMas}
-#sleep 180
+#./deployISPN.sh ${ycsbCli} ${ycsbMas}
+sleep 600
 echo -e "\tDONE\nSending STOP message to nodes"
 
 mkdir logs ; mkdir logs/owd ; mkdir logs/atr
