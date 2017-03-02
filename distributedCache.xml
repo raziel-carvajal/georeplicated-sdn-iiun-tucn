@@ -248,28 +248,16 @@
 
          http://community.jboss.org/wiki/Clusteringmodes
       -->
-      <!--
-      <clustering mode="distribution">
-
-         -->
-         <!--
-            Defines whether to retrieve state on startup.  This is only valud for 'replication' mode.
-         -->
-      <!--
+      <clustering mode="replication">
          <stateRetrieval
             timeout="240000"
             fetchInMemoryState="false"
             alwaysProvideInMemoryState="false"
          />
-
-         -->
          <!--
             Network calls are synchronous.
          -->
-      <!--
          <sync replTimeout="20000"/>
-
-         -->
          <!--
             Uncomment this for async replication.
          -->
@@ -280,10 +268,7 @@
             replQueueMaxElements="500"
          />
          -->
-      <!--
       </clustering>
-
-         -->
    </default>
 
 
@@ -297,11 +282,13 @@
    -->
 
    <!-- A typical, asynchronously replicated, clustered cache -->
+   <!--
    <namedCache name="asyncCache">
       <clustering mode="replication">
          <async asyncMarshalling="true"/>
       </clustering>
    </namedCache>
+   -->
    <!--
       An asynchronous replicated cache making use of a replication queue.  See:
 
