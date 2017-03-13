@@ -35,9 +35,9 @@ for (( CNTR=1; CNTR<=${links}; CNTR+=1 )); do
   atrF="${node}-${endPoId}-atr.out"
   owdF="${node}-${endPoId}-owd.out"
   echo -e "\tMeasuring ATR and OWD from link ${node}-${endPoId} (end point: ${endPoIp}) CNTR[${CNTR}]"
-  ./iperf -c ${endPoIp} -t 360 -i 1 &>${atrF} &
+  ./iperf -p 5210 -c ${endPoIp} -t 360 -i 1 &>${atrF} &
   atrPid=$! ; echo "${atrPid}" >>pids
-  ping ${endPoIp} | perl -nle 'BEGIN {$|++} print scalar(localtime), " ", $_' &> ${owdF} &
+  ping -i 1 ${endPoIp} | perl -nle 'BEGIN {$|++} print scalar(localtime), " ", $_' &> ${owdF} &
   pinPid=$! ; echo "${pinPid}" >>pids
   echo -e "\tDONE"
 done

@@ -88,7 +88,7 @@ echo "DONE"
 
 #TODO find a better way to wait until all ISPN servers boostrap
 echo "Waiting for letting ISPN servers to bootstrap"
-sleep 180
+sleep 60
 echo -e "\tDONE"
 
 caCfg="${cfgFd}/distributed-cache.properties"
@@ -100,9 +100,9 @@ echo -e "\tDONE"
 
 #Reading YCSB options from <<ycsbBenchCfg>> file
 wTy=`grep "workload=" ycsbBenchCfg | awk -F "=" '{print $2}'`
-ycsbLoaOpt="load infinispan-cs -s -P workloads/workload${wTy} -P distributed-cache.properties -p measurementtype=raw -p"
+ycsbLoaOpt="load basic -s -P workloads/workload${wTy} -P distributed-cache.properties -p measurementtype=raw -p"
 ycsbLoaOpt=${ycsbLoaOpt}" measurement.raw.output_file=load.out"
-ycsbRunOpt="run infinispan-cs -s -P workloads/workload${wTy} -P distributed-cache.properties -p measurementtype=raw -p"
+ycsbRunOpt="run basic -s -P workloads/workload${wTy} -P distributed-cache.properties -p measurementtype=raw -p"
 ycsbRunOpt=${ycsbRunOpt}" measurement.raw.output_file=run.out"
 optN=`cat ycsbBenchCfg | wc -l`
 for (( opt=1; opt<=${optN}; opt+=1 )); do

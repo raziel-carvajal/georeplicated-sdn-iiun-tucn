@@ -43,7 +43,7 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   echo "Launching NetTool-daemon on site ${floIp}"
   #ssh ${floIp}-nt "./pathload_snd -i &>~/net-d-${floIp}.log &"
   # Start up server
-  ssh ${floIp}-nt "./iperf -s &>net-d-${floIp}.log &"
+  ssh ${floIp}-nt "./iperf -p 5210 -s &>net-d-${floIp}.log &"
   echo -e "\tDONE"
 
   cat linksNetTool | grep ${floIp} >tmp
@@ -68,10 +68,23 @@ for (( CNTR=1; CNTR<=${pairsNu}; CNTR+=1 )); do
   echo -e "\tDONE"
 done
 
-echo -e "Deploying ISPN and YCSB.."
+
+echo "Start saturation of link ${ycsbCli} - ${ycsbMas}"
+#ycsbMasIp=`grep "${ycsbMas}" mapNetTool | awk '{print $2}'`
+#ssh ${ycsbMas}-nt "./iperf3 -p 5201 -s &>/dev/null &"
+#ssh ${ycsbCli}-nt "./iperf3 -p 5201 -c ${ycsbMasIp} -i 1 -t 180"
+
+#echo -e "Deploying ISPN and YCSB.."
+## Bandwidth-intensive mode 
+#
+## ISPN
 #./deployISPN.sh ${ycsbCli} ${ycsbMas}
-sleep 600
-echo -e "\tDONE\nSending STOP message to nodes"
+#
+## Baseline
+sleep 180
+echo -e "\tDONE"
+#
+#echo -e "\tDONE\nSending STOP message to nodes"
 
 mkdir logs ; mkdir logs/owd ; mkdir logs/atr
 # infinispan.tgz is fetched by deployISPN.sh

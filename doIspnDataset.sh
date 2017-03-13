@@ -47,7 +47,7 @@ dstF="${dsIspnDir}/${link}.dat"
 rm -fr ${dstF}
 
 echo "#writes ws-timestamp" >tmp1
-grep "UPDATE," ${runF} | awk -F "," '{print $3,$2}' >>tmp1
+grep "INSERT," ${loadF} | awk -F "," '{print $3,$2}' >>tmp1
 
 echo "reads rs-timestamp" >tmp2
 grep "READ," ${runF} | awk -F "," '{print $3,$2}' >>tmp2
