@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <title>ATR/RTT Monitor</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"> 
+    <meta http-equiv="Content-Language" content="en-us">
+    <!--
+    <link href="./style/?.css" rel="stylesheet" type="text/css">
+    -->    
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="text/javascript" src="/atr-rtt-monitor.js"></script> 
+  </head>
+  <body>
+    <div id="container">
+      
+    </div>
+  </body>
+</html>
+      
