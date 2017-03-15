@@ -18,7 +18,7 @@
 #===============================================================================
 
 set -o nounset                              # Treat unset variables as an error
-waitForIperfServ=4
+waitForIperfServ=10
 
 rm -fr datasets/*.log *-links.dat
 echo "Deploying NetTool..."
@@ -28,14 +28,9 @@ for (( CNTR=1; CNTR<=${nodesNo}; CNTR+=1 )); do
   line=`cat mapNetTool | head -${CNTR} | tail -1`
   nodeId=`echo ${line} | awk '{print $1}'`
 
-  echo -e "\tRemoving signaling files"
-  ssh ${nodeId}-nt "rm -fr START-* STOP LOOP-* *.log *.out"
-  echo -e "\tDONE"
-  
   echo -e "\tLaunching IperfServer on site: ${nodeId}"
   ssh ${nodeId}-nt "./iperf -p 5210 -s &>iperfServer-${nodeId}.log &"
   echo -e "\tDONE"
-
   #Getting links of each node
   cat linksNetTool | grep ${nodeId} | awk '{print $2}' >${nodeId}-links.dat
 done
