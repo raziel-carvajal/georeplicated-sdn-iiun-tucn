@@ -1,0 +1,15 @@
+{
+  "name": "atr-owd-server",
+  "version": "1.0.0",
+  "description": "Deamon to dispatch ATR/RTT in live (streaming) measurements of DIONASYS testbed",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Raziel Carvajal Gomez",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.15.2",
+    "socket.io": "^1.7.3"
+  }
+}
