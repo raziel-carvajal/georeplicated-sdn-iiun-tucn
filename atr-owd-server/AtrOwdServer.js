@@ -18,14 +18,14 @@ function AtrOwdServer (port, webPage, rttStreams, atrStreams, readFreq) {
   this._app.use('/', Express.static(__dirname + '/'))
   this._http = Http.Server(this._app)
   this._io = SocketIO(this._http)
-  this._rttReadNo = 0
-  this._atrReadNo = 0
   this._rttStreams = {}
+  this._rttReadsNo = {}
   this._atrStreams = {}
   var streams = Object.keys(rttStreams)
   Log("Before loop [%d]", streams.length)
   for (var i = 0; i < streams.length; i++) {
     Log("New stream for key: %s", streams[i])
+    this._rttReadsNo[ streams[i] ] = 0
     this._rttStreams[ streams[i] ] = new RttStreamer(rttStreams[ streams[i] ], readFreq)
     this._rttStreams[ streams[i] ].start()
   }
@@ -74,37 +74,39 @@ AtrOwdServer.prototype.rttEventsHandler = function (msg) {
         try {
           var stream = this._rttStreams[streamId]
           Its.defined(stream)
-          var payload = this.getReadFromStream(stream, this._rttReadNo)
+          var payload = this.getRttStream(stream, streamId)
           
           try {
             Its.defined(payload)
           } catch (e) {
-            Log("WARNNING: read result is undefined for readNo [%d]", this._rttReadNo)
-          } 
+            Log("WARNNING: read result is undefined for readNo [%d]", this._rttReadsNo[streamId])
+          }
           
+          Log("OK message as response")
           this._okMsg.payload = payload
-          this._io.emit('RttAnswer', okMsg)
+          this._io.emit('RttHandler', this._okMsg)
         } catch (e) {
           Log("Stream [%s] doesn't exist", streamId)
           this._koMsg.payload = "Error: stream [" + streamId + "] doesn't exist"
-          this._io.emit('RttAnswer', koMsg)
+          this._io.emit('RttHandler', this._koMsg)
         }
         break
       default:
         Log("Unknown message [%s] for RttHandler", msg.header)
         this._koMsg.payload = "Error: Unknown mesage [" + msg.header + "]"
-        this._io.emit('RttAnswer', koMsg)
+        this._io.emit('RttHandler', this._koMsg)
         break
     }
   } catch (e) {
     Log("RttHandler: Message header OR streamId is not defined")
     this._koMsg.payload = "Error: Message header is undefined"
-    this._io.emit('RttAnswer', koMsg)
+    this._io.emit('RttHandler', this._koMsg)
   }
 }
 
 
-AtrOwdServer.prototype.getReadFromStream = function (stream, readNo) {
+AtrOwdServer.prototype.getRttStream = function (stream, streamId) {
+  var readNo = this._rttReadsNo[streamId]
   Log("Reading stream with try number: %d", readNo)
   try {
     Its(stream._readyToR)
@@ -118,6 +120,7 @@ AtrOwdServer.prototype.getReadFromStream = function (stream, readNo) {
     Log("Buffer of index [%d] is: " + current.toString(), readNo)
     delete stream._buff[readNo]
     readNo++
+    this._rttReadsNo[streamId] = readNo
   } catch (e) {
     Log("ERROR: there is no entry for index: %d", readNo)
     return undefined
