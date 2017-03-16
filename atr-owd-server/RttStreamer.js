@@ -8,14 +8,16 @@ var Log = typeof window === 'undefined' ? require('debug')('RttStreamer') : cons
 //  discarting values from the stream. Currently a "negligible" set of
 //  values might be lost from the stream.
 
-function RttStreamer (file) {
+function RttStreamer (file, timeout) {
   //full path of file to read
+  this._readsNo = 0
   this._iniTryNo = 0
   this._src = file
   this._latr = -1
   this._readyToR = false
   this._buffId = 0
   this._buff = {}
+  this._readTimeout = timeout
   this.initialize()
 }
 
@@ -41,23 +43,50 @@ RttStreamer.prototype.initialize = function () {
     Its.defined(map)
   } catch(e) {
     var self = this
-    this._iniTryNo = this._iniTryNo + 1
+    this._iniTryNo++
     Log("RTT file is not ready for reading [%d]", this._iniTryNo)
     //TODO call periodically initialize() until the first line is ready.
     //  You must wait a while (5 to 8 sec) to let t
   }
-  this._buff.push(map.val)
   this._latr = map.indx
-  this._readyToR = true
 }
 
-RttStreamer.prototype.pop = function () {
-  var resu = this._buff.pop()
-  try {
-    Its.defined(resu)
-  } catch(e) {
-  } finally {
-    return resu
-  }
+RttStreamer.prototype.start = function () {
+  var self = this
+  setInterval(function () {
+    self._readsNo++
+    var go = self.readLatest()
+    try {
+      Its(go)
+    } catch (e) {
+      //TODO how many of this cases are you planning to allow to set
+      //  this._readyToR <- false ?
+      Log("Read [%d]. Probably, source file is not being updated anymore", self._readsNo)
+      return
+    }
+    if (self._bufId == 0) {
+      self._readyToR = true
+    } else {
+      self._buffId++
+    }
+  }, this._readTimeout)
+}
 
+RttStreamer.prototype.readLatest = function () {
+  var map = parseLine( Sh.tail({ '-n': 1 } , this._src) )
+  try {
+    Its.defined(map)
+  } catch(e) {
+    Log("WARNING: the latest line from source file is empty")
+    return false
+  }
+  var linesToRead = map.indx - this._latr
+  if (linesToRead <= 0) {
+    Log("WARNING: any new line was found")
+    return false
+  }
+  this._latr = map.indx
+  var latestLines = Sh.tail({ '-n': linesToRead } , this._src)
+  
+  return true
 }
