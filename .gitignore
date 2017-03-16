@@ -1,2 +1,5 @@
 *.swp
 atr-owd-server/node_modules
+atr-owd-server/STOP
+atr-owd-server/em.log
+atr-owd-server/tmp
