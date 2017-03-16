@@ -26,21 +26,25 @@ document.addEventListener('DOMContentLoaded', function (event) {
       }
       socket.emit('RttHandler', msg)
       j++
+    } else {
+      console.log("Still waiting for GO to be true")
     }
-  }, 5 * 1000)
+  }, 3 * 1000)
   
   socket.on('RttHandler', function (msg) {
     console.log("Message reception [%d] with status [%s]", i, msg['status'])
     if (msg['status'] === 'ok') {
       go = false
       var arr = msg.payload
+      var dateMs = new Date().getTime()
       for (var k = 0; k < arr.length; k++) {
-        ts.append(new Date().getTime(), arr[k])
+        ts.append(dateMs + k * 1000, arr[k])
       }
       i++
       setTimeout(function () {
+        console.log("Doing GO=TRUE")
         go = true
-      }, 5000)
+      }, arr.length * 1000)
     }
   })
 
