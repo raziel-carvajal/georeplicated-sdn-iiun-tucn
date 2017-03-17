@@ -25,11 +25,21 @@ if [ ${#} -lt 1 ] ; then
 fi
 
 wait=${1}
-rm -rf em.log
-./emulate-rtt-stream.sh &> em.log &
-echo "Waiting before killing rtt-emulator"
-sleep ${wait}
-echo "DONE"
+rm -rf em.log server.log
 
-touch STOP
+echo "Start simulation of RTT measures (look at tmp file)"
+./emulate-rtt-stream.sh &> em.log &
+sleep 3
+echo -e "\tDONE"
+
+echo "Launch server to fetch stream of ATR/RTT"
+DEBUG=RttStreamer,AtrOwdServer node BootstrapRttAwdServer.js &> server.log &
+sleep 3
+echo -e "\tDONE"
+
+echo -e "Write down address localhost:3000 in your browser\nWaiting before killing ${0}"
+sleep ${wait}
+echo -e "\tDONE"
+
+touch STOP ; pkill node
 echo "END of ${0}"

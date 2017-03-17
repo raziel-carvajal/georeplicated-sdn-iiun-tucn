@@ -4,15 +4,60 @@
     <title>ATR/RTT Monitor</title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"> 
     <meta http-equiv="Content-Language" content="en-us">
-    <!--
-    <link href="./style/?.css" rel="stylesheet" type="text/css">
-    -->    
+    <style>
+      .dataContainer {
+        position: relative;
+        width: 1050px;
+        margin: 0 auto;
+        padding: 0;
+      }
+      .column {
+        width: 500px;
+        float: left;
+        display: inline;
+        margin-left: 10px;
+        margin-right: 10px;
+      }
+    </style>
     <script src="/socket.io/socket.io.js"></script>
     <script src="smoothie.js"></script>
     <script src="atr-rtt-monitor.js"></script>
   </head>
   <body>
-    <canvas id="mycanvas" width="400" height="100"></canvas>
+    <div class="dataContainer">
+      <div class="column">
+        <label>RTT in [ms] of link: CLU-NEU</label>
+        <br>
+        <canvas id="rtt-clu-neu" width="400" height="300"></canvas>
+      </div>
+      <div class="column">
+        <label>ATR in [Mbits/s] of link: CLU-NEU</label>
+        <br>
+        <canvas id="atr-clu-neu" width="400" height="300"></canvas>
+      </div>
+      <br><br>
+      <div class="column">
+        <label>RTT in [ms] of link: CLU-BOR</label>
+        <br>
+        <canvas id="rtt-clu-bor" width="400" height="300"></canvas>
+      </div>
+      <div class="column">
+        <label>ATR in [Mbits/s] of link: CLU-BOR</label>
+        <br>
+        <canvas id="atr-clu-bor" width="400" height="300"></canvas>
+      </div>
+      <br><br>
+      <div class="column">
+        <label>RTT in [ms] of link: CLU-LAN</label>
+        <br>
+        <canvas id="rtt-clu-lan" width="400" height="300"></canvas>
+      </div>
+      <div class="column">
+        <label>ATR in [Mbits/s] of link: CLU-LAN</label>
+        <br>
+        <canvas id="atr-clu-lan" width="400" height="300"></canvas>
+      </div>
+    </div>
   </body>
 </html>
       

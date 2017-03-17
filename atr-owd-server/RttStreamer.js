@@ -40,7 +40,7 @@ RttStreamer.prototype.parseLine = function (line) {
   //var ind = parseInt(array[1].split(" ")[0]) + 1
   var ind = parseInt(array[1].split(" ")[0])
   // RTT/2 in milliseconds
-  var val = parseFloat(array[1].split(" ")[2].split("=")[1]) * (0.5)
+  var val = parseFloat(array[1].split(" ")[2].split("=")[1])
   //Log("Current indx=%d && val=", ind, val)
   return { 'indx': ind, 'val': val }
 }
