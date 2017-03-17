@@ -1,9 +1,9 @@
 #!/bin/bash - 
 #===============================================================================
 #
-#          FILE: copyAtController.sh
+#          FILE: makeLib.sh
 # 
-#         USAGE: ./copyAtController.sh 
+#         USAGE: ./makeLib.sh 
 # 
 #   DESCRIPTION: 
 # 
@@ -13,11 +13,11 @@
 #         NOTES: ---
 #        AUTHOR: Raziel Carvajal-Gomez (RCG), raziel.carvajal@unine.ch
 #  ORGANIZATION: 
-#       CREATED: 02/13/2017 01:27
+#       CREATED: 03/18/2017 00:16
 #      REVISION:  ---
 #===============================================================================
 
 set -o nounset                              # Treat unset variables as an error
-
-files="measure-rtt-atr.sh killIperfPingProc.sh mapNetTool linksNetTool"
-scp ${files} dionasys-controller:~/iiun-scripts/georeplicated-sdn-iiun-tucn
+rm -fr lib/NetMonitor.js
+browserify main.js -o NetMonitor.js
+mv NetMonitor.js lib/

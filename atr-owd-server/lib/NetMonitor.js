@@ -1,3 +1,957 @@
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+module.exports = AtrRttMonitor
+try {
+  Its.defined(window)
+  AtrRttMonitor.prototype._Log = console.info.bind(console)
+  AtrRttMonitor.prototype._Err = console.error.bind(console)
+  AtrRttMonitor.prototype.log = function (logMsg) {
+    AtrRttMonitor.prototype._Log("AtrRttMonitor " + logMsg)
+  }
+  AtrRttMonitor.prototype.err = function (errMsg) {
+    AtrRttMonitor.prototype._Log("AtrRttMonitor " + errMsg)
+  }
+} catch (e) {
+  AtrRttMonitor.prototype.log = require('debug')('AtrRttMonitor:log') 
+  AtrRttMonitor.prototype.err = require('debug')('AtrRttMonitor:err') 
+}
+
+function AtrRttMonitor (rttCharts, atrCharts, socket, rttChartCfg, 
+  atrChartCfg, lineCfg) {
+  if (!(this instanceof AtrRttMonitor)) {
+    return new AtrRttMonitor(rttCharts, atrCharts, socket, rttChartCfg,
+     atrChartCfg, lineCfg)
+  }
+  this.log("new AtrRttMonitor()")
+  try {
+    Its.defined(rttCharts)
+    Its.defined(atrCharts)
+    Its.defined(socket)
+    Its.defined(rttChartCfg)
+    Its.defined(atrChartCfg)
+    Its.defined(lineCfg)
+    this._timeout = 3
+    this._rttCharts = rttCharts
+    this._atrCharts = atrCharts
+    var maX = max(rttCharts.length, atrCharts.length)
+    this._chartsLen = rttCharts.length === atrCharts.length ? rttCharts.length : maX
+    this._socket = socket
+    this._go = { rtt: true, atr: true, zk: true }
+    this._threads = { rtt: undefined, atr: undefined, zk: undefined }
+  } catch (e) {
+    this.err("At least one argument is undefined. Aborting...")
+    return undefined
+  }
+  this._tsPerChart = {}
+  this._charts = {}
+  for (var i = 0; i < this._chartsLen; i++) {
+    this.setAttributes(i, atrChartCfg, rttChartCfg, lineCfg)
+  }
+  this.setEvents()
+    this.log("End of new AtrRttMonitor()")
+}
+
+AtrRttMonitor.prototype.setAttributes = function (i, 
+  atrChartCfg, rttChartCfg, lineCfg) {
+  switch (i) {
+    // ATR
+    case 0:
+      this._tsPerChart[ this._atrCharts[i] ] = new TimeSeries()
+      this._charts[ this._atrCharts[i] ] = new SmoothieChart(atrChartCfg)
+      this._charts[ this._atrCharts[i] ].addTimeSeries (
+       this._tsPerChart[ this._atrCharts[i] ], lineCfg
+      )
+      var atrCnvs = document.getElementById(this._atrCharts[i])
+      this._charts[ this._atrCharts[i] ].streamTo(atrCnvs, 325) 
+    break
+    // RTT
+    case 1:
+      this._tsPerChart[ this._rttCharts[i] ] = new TimeSeries()
+      this._charts[ this._rttCharts[i] ] = new SmoothieChart(rttChartCfg)
+      this._charts[ this._rttCharts[i] ].addTimeSeries (
+        this._tsPerChart[ this._rttCharts[i] ], lineCfg
+      )
+      var rttCnvs = document.getElementById(this._rttCharts[i])
+      this._charts[ this._rttCharts[i] ].streamTo(rttCnvs, 325) 
+    break
+    // ZK
+    case 3:
+      this.log("ZK case to be filled...")
+    break
+    default:
+      this.err("Option ["+i+"] isn't recognized to set attributes")
+    break
+  }
+}
+
+AtrRttMonitor.prototype.setEvents = function () {
+  var self = this
+  this._socket.on('RttAnsw', function (msg) { self.handleAnswer(msg) })
+  this._socket.on('AtrAnsw', function (msg) { self.handleAnswer(msg) })
+  //this._socket.on('ZkAnsw', function (msg) { self.handleAnswer(msg) })
+}
+
+AtrRttMonitor.prototype.appendInTimeSeries = function (okPayl, chart) {
+  var dateMs = new Date().getTime()
+  for (var i = 0; i < this._chartsLen; i++) {
+    for (var k = 0; k < okPayl.length; k++) {
+      this._tsPerChart[ chart[i] ].append(dateMs + k * 1000, okPayl[k])
+    }
+  }
+}
+
+AtrRttMonitor.prototype.fillTimeSeries = function (dataId, okPayl) {
+  switch (dataId) {
+    case "rtt":
+      this.appendInTimeSeries(okPayl, this._rttCharts)
+    break
+    case "atr":
+      this.appendInTimeSeries(okPayl, this._atrCharts)
+     break
+    case "zk":
+      this.log("TODO: Fill TimeSeries of ZK dataset")
+    break
+    default:
+      this.err("Dataset [" + dataId + "] will be ignored")
+      return false
+    break
+  }
+  return true
+}
+
+AtrRttMonitor.prototype.handleAnswer = function (msg) {
+  this.log("Message reception with status [" + msg.status + "]")
+  try {
+    Its(msg.status === 'ok')
+    var dataId = msg.payload.dataId
+    var okPayl = msg.payload.okPayl
+    try {
+      Its.defined(this._go[ dataId ])
+      var resu = this.fillTimeSeries(dataId, okPayl)
+      try {
+        Its(resu)
+        this._go[dataId] = false
+        var self = this
+        this.log("Go[" + dataId + "] will be true after [" + okPayl + "] seconds")
+        setTimeout(function () {
+          self.log("Go[" + dataId + "] = TRUE")
+          self._go[ dataId ] = true
+        }, okPayl.length * 1000)
+      } catch (e) {
+        this._go[dataId] = true
+      }
+    } catch (e) {
+      this.err("Dataset [" + dataId + "] isn't recognized")
+    }
+  } catch (e) {
+    this.err("KoMsg info: " + msg.koMsg)
+  }
+}
+
+AtrRttMonitor.prototype.fetchStreams = function () {
+  var dataIds = Object.keys(this._threads)
+  var self = this
+  for (var i = 0; i < dataIds.length; i++) {
+    this._threads[ dataIds[i] ] = setInterval(function () {
+      self.log("Is GO[" + dataIds[i] + "] TRUE ?")
+      if (this._go[ dataIds[i] ]) {
+        self.log("GO[" + dataIds[i] + "] is TRUE")
+        self.log("Getting streams of [" + dataIds[i] + "]")
+        var msg = {
+          header: 'get-' + dataIds[i],
+          payload: { streamId: undefined }
+        }
+        for (var j = 0; j < this._chartsLen; j++) {
+          switch (dataIds[i]) {
+            case "rtt":
+              msg.payload.streamId = self._rttCharts[j]
+            break
+            case "atr":
+              msg.payload.streamId = self._atrCharts[j]
+            break
+            case "zk":
+              self.log("Set request ot get ZK stream")
+            break
+            default:
+            break
+          }
+          self._socket.emit('RttHandler', msg) 
+        }
+      } else {
+        self.log("Still waiting for GO to be true")
+      }
+    }, this._timeout * 1000)
+  }
+}
+
+AtrRttMonitor.prototype.stopGettingStreams = function () {
+  var dataIds = Object.keys(this._threads)
+  for (var i = 0; i < dataIds.length; i++) {
+    this.log("Stop stream [" + dataIds[i] + "]")
+    clearInterval( this._threads[ dataIds[i] ] )
+  }
+}
+
+},{"debug":4}],2:[function(require,module,exports){
+var lineCfg = {lineWidth:2,strokeStyle:'#19ff00'}
+
+var rttChartCfg = {millisPerPixel:42,maxValueScale:0.8,interpolation:'step',scaleSmoothing:0.205,grid:{sharpLines:true,millisPerLine:2000,verticalSections:6},labels:{fontSize:18},timestampFormatter:SmoothieChart.timeFormatter,minValue:0,maxValue:100,horizontalLines:[{color:'#ffffff',lineWidth:1,value:0},{color:'#880000',lineWidth:2,value:3333},{color:'#880000',lineWidth:2,value:-3333}]}
+
+var atrChartCfg = {millisPerPixel:42,maxValueScale:0.8,interpolation:'step',scaleSmoothing:0.205,grid:{sharpLines:true,millisPerLine:2000,verticalSections:6},labels:{fontSize:18},timestampFormatter:SmoothieChart.timeFormatter,minValue:0,maxValue:300,horizontalLines:[{color:'#ffffff',lineWidth:1,value:0},{color:'#880000',lineWidth:2,value:3333},{color:'#880000',lineWidth:2,value:-3333}]}
+
+var rttCharts = ['rtt-clu-neu', 'rtt-clu-bor', 'rtt-clu-lan']
+var atrCharts = ['atr-clu-neu', 'atr-clu-bor', 'atr-clu-lan']
+
+window.Its = require('its')
+window.SmoothieChart = require('smoothie').SmoothieChart
+window.AtrRttMonitor = require('./AtrRttMonitor.js')
+
+// MAIN()
+document.addEventListener('DOMContentLoaded', function (event) {
+  var socket = io()
+  //var monitor = new AtrRttMonitor(rttCharts, atrCharts, socket, rttChartCfg,
+  //   atrChartCfg, lineCfg)
+  // Fetching ATR/RTT/ZK streams in a periodic way
+  //monitor.fetchStreams()
+})
+
+},{"./AtrRttMonitor.js":1,"its":6,"smoothie":8}],3:[function(require,module,exports){
+/**
+ * Helpers.
+ */
+
+var s = 1000
+var m = s * 60
+var h = m * 60
+var d = h * 24
+var y = d * 365.25
+
+/**
+ * Parse or format the given `val`.
+ *
+ * Options:
+ *
+ *  - `long` verbose formatting [false]
+ *
+ * @param {String|Number} val
+ * @param {Object} options
+ * @throws {Error} throw an error if val is not a non-empty string or a number
+ * @return {String|Number}
+ * @api public
+ */
+
+module.exports = function (val, options) {
+  options = options || {}
+  var type = typeof val
+  if (type === 'string' && val.length > 0) {
+    return parse(val)
+  } else if (type === 'number' && isNaN(val) === false) {
+    return options.long ?
+			fmtLong(val) :
+			fmtShort(val)
+  }
+  throw new Error('val is not a non-empty string or a valid number. val=' + JSON.stringify(val))
+}
+
+/**
+ * Parse the given `str` and return milliseconds.
+ *
+ * @param {String} str
+ * @return {Number}
+ * @api private
+ */
+
+function parse(str) {
+  str = String(str)
+  if (str.length > 10000) {
+    return
+  }
+  var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(str)
+  if (!match) {
+    return
+  }
+  var n = parseFloat(match[1])
+  var type = (match[2] || 'ms').toLowerCase()
+  switch (type) {
+    case 'years':
+    case 'year':
+    case 'yrs':
+    case 'yr':
+    case 'y':
+      return n * y
+    case 'days':
+    case 'day':
+    case 'd':
+      return n * d
+    case 'hours':
+    case 'hour':
+    case 'hrs':
+    case 'hr':
+    case 'h':
+      return n * h
+    case 'minutes':
+    case 'minute':
+    case 'mins':
+    case 'min':
+    case 'm':
+      return n * m
+    case 'seconds':
+    case 'second':
+    case 'secs':
+    case 'sec':
+    case 's':
+      return n * s
+    case 'milliseconds':
+    case 'millisecond':
+    case 'msecs':
+    case 'msec':
+    case 'ms':
+      return n
+    default:
+      return undefined
+  }
+}
+
+/**
+ * Short format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function fmtShort(ms) {
+  if (ms >= d) {
+    return Math.round(ms / d) + 'd'
+  }
+  if (ms >= h) {
+    return Math.round(ms / h) + 'h'
+  }
+  if (ms >= m) {
+    return Math.round(ms / m) + 'm'
+  }
+  if (ms >= s) {
+    return Math.round(ms / s) + 's'
+  }
+  return ms + 'ms'
+}
+
+/**
+ * Long format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function fmtLong(ms) {
+  return plural(ms, d, 'day') ||
+    plural(ms, h, 'hour') ||
+    plural(ms, m, 'minute') ||
+    plural(ms, s, 'second') ||
+    ms + ' ms'
+}
+
+/**
+ * Pluralization helper.
+ */
+
+function plural(ms, n, name) {
+  if (ms < n) {
+    return
+  }
+  if (ms < n * 1.5) {
+    return Math.floor(ms / n) + ' ' + name
+  }
+  return Math.ceil(ms / n) + ' ' + name + 's'
+}
+
+},{}],4:[function(require,module,exports){
+(function (process){
+/**
+ * This is the web browser implementation of `debug()`.
+ *
+ * Expose `debug()` as the module.
+ */
+
+exports = module.exports = require('./debug');
+exports.log = log;
+exports.formatArgs = formatArgs;
+exports.save = save;
+exports.load = load;
+exports.useColors = useColors;
+exports.storage = 'undefined' != typeof chrome
+               && 'undefined' != typeof chrome.storage
+                  ? chrome.storage.local
+                  : localstorage();
+
+/**
+ * Colors.
+ */
+
+exports.colors = [
+  'lightseagreen',
+  'forestgreen',
+  'goldenrod',
+  'dodgerblue',
+  'darkorchid',
+  'crimson'
+];
+
+/**
+ * Currently only WebKit-based Web Inspectors, Firefox >= v31,
+ * and the Firebug extension (any Firefox version) are known
+ * to support "%c" CSS customizations.
+ *
+ * TODO: add a `localStorage` variable to explicitly enable/disable colors
+ */
+
+function useColors() {
+  // NB: In an Electron preload script, document will be defined but not fully
+  // initialized. Since we know we're in Chrome, we'll just detect this case
+  // explicitly
+  if (typeof window !== 'undefined' && window && typeof window.process !== 'undefined' && window.process.type === 'renderer') {
+    return true;
+  }
+
+  // is webkit? http://stackoverflow.com/a/16459606/376773
+  // document is undefined in react-native: https://github.com/facebook/react-native/pull/1632
+  return (typeof document !== 'undefined' && document && 'WebkitAppearance' in document.documentElement.style) ||
+    // is firebug? http://stackoverflow.com/a/398120/376773
+    (typeof window !== 'undefined' && window && window.console && (console.firebug || (console.exception && console.table))) ||
+    // is firefox >= v31?
+    // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
+    (typeof navigator !== 'undefined' && navigator && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31) ||
+    // double check webkit in userAgent just in case we are in a worker
+    (typeof navigator !== 'undefined' && navigator && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/));
+}
+
+/**
+ * Map %j to `JSON.stringify()`, since no Web Inspectors do that by default.
+ */
+
+exports.formatters.j = function(v) {
+  try {
+    return JSON.stringify(v);
+  } catch (err) {
+    return '[UnexpectedJSONParseError]: ' + err.message;
+  }
+};
+
+
+/**
+ * Colorize log arguments if enabled.
+ *
+ * @api public
+ */
+
+function formatArgs(args) {
+  var useColors = this.useColors;
+
+  args[0] = (useColors ? '%c' : '')
+    + this.namespace
+    + (useColors ? ' %c' : ' ')
+    + args[0]
+    + (useColors ? '%c ' : ' ')
+    + '+' + exports.humanize(this.diff);
+
+  if (!useColors) return;
+
+  var c = 'color: ' + this.color;
+  args.splice(1, 0, c, 'color: inherit')
+
+  // the final "%c" is somewhat tricky, because there could be other
+  // arguments passed either before or after the %c, so we need to
+  // figure out the correct index to insert the CSS into
+  var index = 0;
+  var lastC = 0;
+  args[0].replace(/%[a-zA-Z%]/g, function(match) {
+    if ('%%' === match) return;
+    index++;
+    if ('%c' === match) {
+      // we only are interested in the *last* %c
+      // (the user may have provided their own)
+      lastC = index;
+    }
+  });
+
+  args.splice(lastC, 0, c);
+}
+
+/**
+ * Invokes `console.log()` when available.
+ * No-op when `console.log` is not a "function".
+ *
+ * @api public
+ */
+
+function log() {
+  // this hackery is required for IE8/9, where
+  // the `console.log` function doesn't have 'apply'
+  return 'object' === typeof console
+    && console.log
+    && Function.prototype.apply.call(console.log, console, arguments);
+}
+
+/**
+ * Save `namespaces`.
+ *
+ * @param {String} namespaces
+ * @api private
+ */
+
+function save(namespaces) {
+  try {
+    if (null == namespaces) {
+      exports.storage.removeItem('debug');
+    } else {
+      exports.storage.debug = namespaces;
+    }
+  } catch(e) {}
+}
+
+/**
+ * Load `namespaces`.
+ *
+ * @return {String} returns the previously persisted debug modes
+ * @api private
+ */
+
+function load() {
+  var r;
+  try {
+    r = exports.storage.debug;
+  } catch(e) {}
+
+  // If debug isn't set in LS, and we're in Electron, try to load $DEBUG
+  if (!r && typeof process !== 'undefined' && 'env' in process) {
+    r = process.env.DEBUG;
+  }
+
+  return r;
+}
+
+/**
+ * Enable namespaces listed in `localStorage.debug` initially.
+ */
+
+exports.enable(load());
+
+/**
+ * Localstorage attempts to return the localstorage.
+ *
+ * This is necessary because safari throws
+ * when a user disables cookies/localstorage
+ * and you attempt to access it.
+ *
+ * @return {LocalStorage}
+ * @api private
+ */
+
+function localstorage() {
+  try {
+    return window.localStorage;
+  } catch (e) {}
+}
+
+}).call(this,require('_process'))
+},{"./debug":5,"_process":9}],5:[function(require,module,exports){
+
+/**
+ * This is the common logic for both the Node.js and web browser
+ * implementations of `debug()`.
+ *
+ * Expose `debug()` as the module.
+ */
+
+exports = module.exports = createDebug.debug = createDebug['default'] = createDebug;
+exports.coerce = coerce;
+exports.disable = disable;
+exports.enable = enable;
+exports.enabled = enabled;
+exports.humanize = require('ms');
+
+/**
+ * The currently active debug mode names, and names to skip.
+ */
+
+exports.names = [];
+exports.skips = [];
+
+/**
+ * Map of special "%n" handling functions, for the debug "format" argument.
+ *
+ * Valid key names are a single, lower or upper-case letter, i.e. "n" and "N".
+ */
+
+exports.formatters = {};
+
+/**
+ * Previous log timestamp.
+ */
+
+var prevTime;
+
+/**
+ * Select a color.
+ * @param {String} namespace
+ * @return {Number}
+ * @api private
+ */
+
+function selectColor(namespace) {
+  var hash = 0, i;
+
+  for (i in namespace) {
+    hash  = ((hash << 5) - hash) + namespace.charCodeAt(i);
+    hash |= 0; // Convert to 32bit integer
+  }
+
+  return exports.colors[Math.abs(hash) % exports.colors.length];
+}
+
+/**
+ * Create a debugger with the given `namespace`.
+ *
+ * @param {String} namespace
+ * @return {Function}
+ * @api public
+ */
+
+function createDebug(namespace) {
+
+  function debug() {
+    // disabled?
+    if (!debug.enabled) return;
+
+    var self = debug;
+
+    // set `diff` timestamp
+    var curr = +new Date();
+    var ms = curr - (prevTime || curr);
+    self.diff = ms;
+    self.prev = prevTime;
+    self.curr = curr;
+    prevTime = curr;
+
+    // turn the `arguments` into a proper Array
+    var args = new Array(arguments.length);
+    for (var i = 0; i < args.length; i++) {
+      args[i] = arguments[i];
+    }
+
+    args[0] = exports.coerce(args[0]);
+
+    if ('string' !== typeof args[0]) {
+      // anything else let's inspect with %O
+      args.unshift('%O');
+    }
+
+    // apply any `formatters` transformations
+    var index = 0;
+    args[0] = args[0].replace(/%([a-zA-Z%])/g, function(match, format) {
+      // if we encounter an escaped % then don't increase the array index
+      if (match === '%%') return match;
+      index++;
+      var formatter = exports.formatters[format];
+      if ('function' === typeof formatter) {
+        var val = args[index];
+        match = formatter.call(self, val);
+
+        // now we need to remove `args[index]` since it's inlined in the `format`
+        args.splice(index, 1);
+        index--;
+      }
+      return match;
+    });
+
+    // apply env-specific formatting (colors, etc.)
+    exports.formatArgs.call(self, args);
+
+    var logFn = debug.log || exports.log || console.log.bind(console);
+    logFn.apply(self, args);
+  }
+
+  debug.namespace = namespace;
+  debug.enabled = exports.enabled(namespace);
+  debug.useColors = exports.useColors();
+  debug.color = selectColor(namespace);
+
+  // env-specific initialization logic for debug instances
+  if ('function' === typeof exports.init) {
+    exports.init(debug);
+  }
+
+  return debug;
+}
+
+/**
+ * Enables a debug mode by namespaces. This can include modes
+ * separated by a colon and wildcards.
+ *
+ * @param {String} namespaces
+ * @api public
+ */
+
+function enable(namespaces) {
+  exports.save(namespaces);
+
+  exports.names = [];
+  exports.skips = [];
+
+  var split = (namespaces || '').split(/[\s,]+/);
+  var len = split.length;
+
+  for (var i = 0; i < len; i++) {
+    if (!split[i]) continue; // ignore empty strings
+    namespaces = split[i].replace(/\*/g, '.*?');
+    if (namespaces[0] === '-') {
+      exports.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
+    } else {
+      exports.names.push(new RegExp('^' + namespaces + '$'));
+    }
+  }
+}
+
+/**
+ * Disable debug output.
+ *
+ * @api public
+ */
+
+function disable() {
+  exports.enable('');
+}
+
+/**
+ * Returns true if the given mode name is enabled, false otherwise.
+ *
+ * @param {String} name
+ * @return {Boolean}
+ * @api public
+ */
+
+function enabled(name) {
+  var i, len;
+  for (i = 0, len = exports.skips.length; i < len; i++) {
+    if (exports.skips[i].test(name)) {
+      return false;
+    }
+  }
+  for (i = 0, len = exports.names.length; i < len; i++) {
+    if (exports.names[i].test(name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Coerce `val`.
+ *
+ * @param {Mixed} val
+ * @return {Mixed}
+ * @api private
+ */
+
+function coerce(val) {
+  if (val instanceof Error) return val.stack || val.message;
+  return val;
+}
+
+},{"ms":3}],6:[function(require,module,exports){
+module.exports = require('./lib/its.js');
+},{"./lib/its.js":7}],7:[function(require,module,exports){
+// Helpers
+var slice = Array.prototype.slice;
+var toString = Object.prototype.toString;
+
+var templateRegEx = /%s/; // The template placeholder, used to split message templates
+
+/** A basic templating function. 
+	
+	Takes a string with 0 or more '%s' placeholders and an array to populate it with.
+
+	@param {String} messageTemplate A string which may or may not have 0 or more '%s' to denote argument placement
+	@param {Array} [messageArguments] Items to populate the template with
+
+	@example
+		templatedMessage("Hello"); // returns "Hello"
+		templatedMessage("Hello, %s", ["world"]); // returns "Hello, world"
+		templatedMessage("Hello, %s. It's %s degrees outside.", ["world", 72]); // returns "Hello, world. It's 72 degrees outside"
+
+	@returns {String} The resolved message
+*/
+var templatedMessage = function(messageTemplate, messageArguments){
+	var result = [],
+		messageArray = messageTemplate.split(templateRegEx),
+		index = 0,
+		length = messageArray.length;
+
+	for(; index < length; index++){
+		result.push(messageArray[index]);
+		result.push(messageArguments[index]);
+	}
+
+	return result.join('');
+};
+
+
+/** Generic check function which throws an error if a given expression is false
+*
+*	The params list is a bit confusing, check the examples to see the available ways of calling this function
+*
+*	@param {Boolean} expression The determinant of whether an exception is thrown
+*	@param {String|Object} [messageOrErrorType] A message or an ErrorType object to throw if expression is false
+*   @param {String|Object} [messageOrMessageArgs] A message, message template, or a message argument
+*	@param {...Object} [messageArgs] Arguments for a provided message template
+*
+*	@returns {Boolean} Returns the expression passed  
+*	@throws {Error}
+*
+*	@example
+*		its(0 < 10); // returns true
+*		its(0 > 10); // throws Error with no message
+*		its(0 > 10, "Something went wrong!"); // throws Error with message: "Something went wrong!"
+*		its(0 > 10, "%s went %s!", "something", "wrong"); // throws Error with message: "Something went wrong!"
+*		its(0 > 10, RangeError, "%s went %s!", "something", "wrong"); // throws RangeError with message: "Something went wrong!"
+*		its(0 > 10, RangeError); // throws RangeError with no message
+*/
+var its = module.exports = function(expression, messageOrErrorType){
+	if(expression === false){
+		if(messageOrErrorType && typeof messageOrErrorType !== "string"){ // Check if custom error object passed
+			throw messageOrErrorType(arguments.length > 3 ? templatedMessage(arguments[2], slice.call(arguments,3)) : arguments[2]);	
+		} else {
+			throw new Error(arguments.length > 2 ? templatedMessage(messageOrErrorType, slice.call(arguments,2)) : messageOrErrorType);	
+		}
+	}
+	return expression;
+};
+
+/** Throws a TypeError if a given expression is false
+*
+*	@param {Boolean} expression The determinant of whether an exception is thrown
+*	@param {String} [message] A message or message template for the error (if it gets thrown)
+*	@param {...Object} [messageArgs] Arguments for a provided message template
+*
+*	@returns {Boolean} Returns the expression passed  
+*	@throws {TypeError}
+*
+*	@example
+*		its.type(typeof "Team" === "string"); // returns true
+*		its.type(typeof "Team" === "number"); // throws TypeError with no message
+*		its.type(void 0, "Something went wrong!"); // throws TypeError with message: "Something went wrong!"
+*		its.type(void 0, "%s went %s!", "something", "wrong"); // throws TypeError with message: "Something went wrong!"
+*/
+its.type = function(expression, message){
+	if(expression === false){
+		throw new TypeError(arguments.length > 2 ? templatedMessage(message, slice.call(arguments,2)) : message);
+	}
+	return expression;
+};
+
+// Helpers
+its.undefined = function(expression){
+	return its.type.apply(null, [expression === void 0].concat(slice.call(arguments, 1)));
+};
+
+its.null = function(expression){
+	return its.type.apply(null, [expression === null].concat(slice.call(arguments, 1)));
+};
+
+its.boolean = function(expression){
+	return its.type.apply(null, [expression === true || expression === false || toString.call(expression) === "[object Boolean]"].concat(slice.call(arguments, 1)));
+};
+
+its.array = function(expression){
+	return its.type.apply(null, [toString.call(expression) === "[object Array]"].concat(slice.call(arguments, 1)));
+};
+
+its.object = function(expression){
+	return its.type.apply(null, [expression === Object(expression)].concat(slice.call(arguments, 1)));
+};
+
+/** This block creates 
+*	its.function
+*	its.string
+*	its.number
+*	its.date
+*	its.regexp
+*/
+(function(){
+	var types = [
+			['args','Arguments'],
+			['func', 'Function'], 
+			['string', 'String'], 
+			['number', 'Number'], 
+			['date', 'Date'], 
+			['regexp', 'RegExp']
+		],
+		index = 0,
+		length = types.length;
+
+	for(; index < length; index++){
+		(function(){
+			var theType = types[index];
+			its[theType[0]] = function(expression){
+				return its.type.apply(null, [toString.call(expression) === '[object ' + theType[1] + ']'].concat(slice.call(arguments, 1)));
+			};
+		}());
+	}
+}());
+
+// optimization from underscore.js by documentcloud -- underscorejs.org
+if (typeof (/./) !== 'function') {
+	its.func = function(expression) {
+		return its.type.apply(null, [typeof expression === "function"].concat(slice.call(arguments, 1)));
+	};
+}
+
+/** Throws a ReferenceError if a given expression is false
+*
+*	@param {Boolean} expression The determinant of whether an exception is thrown
+*	@param {String} [message] A message or message template for the error (if it gets thrown)
+*	@param {...Object} [messageArgs] Arguments for a provided message template
+*
+*	@returns {Object} Returns the expression passed  
+*	@throws {ReferenceError}
+*
+*	@example
+*		its.defined("Something"); // returns true
+*		its.defined(void 0); // throws ReferenceError with no message
+*		its.defined(void 0, "Something went wrong!"); // throws ReferenceError with message: "Something went wrong!"
+*		its.defined(void 0, "%s went %s!", "something", "wrong"); // throws ReferenceError with message: "Something went wrong!"
+*/
+its.defined = function(expression, message){
+	if(expression === void 0){
+		throw new ReferenceError(arguments.length > 2 ? templatedMessage(message, slice.call(arguments,2)) : message);
+	}
+
+	return expression;
+};
+
+/** Throws a RangeError if a given expression is false
+*
+*	@param {Boolean} expression The determinant of whether an exception is thrown
+*	@param {String} [message] A message or message template for the error (if it gets thrown)
+*	@param {...Object} [messageArgs] Arguments for a provided message template
+*
+*	@returns {Boolean} Returns the expression passed  
+*	@throws {RangeError}
+*
+*	@example
+*		its.range(1 > 0); // returns true
+*		its.range(1 < 2); // throws RangeError with no message
+*		its.range(1 < 2 && 1 > 2, "Something went wrong!"); // throws RangeError with message: "Something went wrong!"
+*		its.range(1 < 2 && 1 > 2, "%s went %s!", "something", "wrong"); // throws RangeError with message: "Something went wrong!"
+*/
+its.range = function(expression, message){
+	if(expression === false){
+		throw new RangeError(arguments.length > 2 ? templatedMessage(message, slice.call(arguments,2)) : message);
+	}
+
+	return expression;
+};
+},{}],8:[function(require,module,exports){
 // MIT License:
 //
 // Copyright (c) 2010-2013, Joe Walnes
@@ -72,8 +1026,6 @@
  *        Add TimeSeries.clear function, by @drewnoakes
  * v1.26: Add support for resizing on high device pixel ratio screens, by @copacetic
  * v1.27: Fix bug introduced in v1.26 for non whole number devicePixelRatio values, by @zmbush
- * v1.28: Add 'minValueScale' option, by @megawac
- *        Fix 'labelPos' for different size of 'minValueString' 'maxValueString', by @henryn
  */
 
 ;(function(exports) {
@@ -227,7 +1179,6 @@
    *   minValue: undefined,                      // specify to clamp the lower y-axis to a given value
    *   maxValue: undefined,                      // specify to clamp the upper y-axis to a given value
    *   maxValueScale: 1,                         // allows proportional padding to be added above the chart. for 10% padding, specify 1.1.
-   *   minValueScale: 1,                         // allows proportional padding to be added below the chart. for 10% padding, specify 1.1.
    *   yRangeFunction: undefined,                // function({min: , max: }) { return {min: , max: }; }
    *   scaleSmoothing: 0.125,                    // controls the rate at which y-value zoom animation occurs
    *   millisPerPixel: 20,                       // sets the speed at which the chart pans by
@@ -242,7 +1193,6 @@
    *   interpolation: 'bezier'                   // one of 'bezier', 'linear', or 'step'
    *   timestampFormatter: null,                 // optional function to format time stamps for bottom of chart
    *                                             // you may use SmoothieChart.timeFormatter, or your own: function(date) { return ''; }
-   *   scrollBackwards: false,                   // reverse the scroll direction of the chart
    *   horizontalLines: [],                      // [ { value: 0, color: '#ffffff', lineWidth: 1 } ]
    *   grid:
    *   {
@@ -285,11 +1235,9 @@
       return parseFloat(max).toFixed(precision);
     },
     maxValueScale: 1,
-    minValueScale: 1,
     interpolation: 'bezier',
     scaleSmoothing: 0.125,
     maxDataSetLength: 2,
-    scrollBackwards: false,
     grid: {
       fillStyle: '#000000',
       strokeStyle: '#777777',
@@ -518,8 +1466,6 @@
     // Set the minimum if we've specified one
     if (chartOptions.minValue != null) {
       chartMinValue = chartOptions.minValue;
-    } else {
-      chartMinValue -= Math.abs(chartMinValue * chartOptions.minValueScale - chartMinValue);
     }
 
     // If a custom range function is set, call it
@@ -579,9 +1525,6 @@
             : dimensions.height - (Math.round((offset / this.currentValueRange) * dimensions.height));
         }.bind(this),
         timeToXPixel = function(t) {
-          if(chartOptions.scrollBackwards) {
-            return Math.round((time - t) / chartOptions.millisPerPixel);
-          }
           return Math.round(dimensions.width - ((time - t) / chartOptions.millisPerPixel));
         };
 
@@ -751,41 +1694,29 @@
     // Draw the axis values on the chart.
     if (!chartOptions.labels.disabled && !isNaN(this.valueRange.min) && !isNaN(this.valueRange.max)) {
       var maxValueString = chartOptions.yMaxFormatter(this.valueRange.max, chartOptions.labels.precision),
-          minValueString = chartOptions.yMinFormatter(this.valueRange.min, chartOptions.labels.precision),
-          maxLabelPos = chartOptions.scrollBackwards ? 0 : dimensions.width - context.measureText(maxValueString).width - 2,
-          minLabelPos = chartOptions.scrollBackwards ? 0 : dimensions.width - context.measureText(minValueString).width - 2;
+          minValueString = chartOptions.yMinFormatter(this.valueRange.min, chartOptions.labels.precision);
       context.fillStyle = chartOptions.labels.fillStyle;
-      context.fillText(maxValueString, maxLabelPos, chartOptions.labels.fontSize);
-      context.fillText(minValueString, minLabelPos, dimensions.height - 2);
+      context.fillText(maxValueString, dimensions.width - context.measureText(maxValueString).width - 2, chartOptions.labels.fontSize);
+      context.fillText(minValueString, dimensions.width - context.measureText(minValueString).width - 2, dimensions.height - 2);
     }
 
     // Display timestamps along x-axis at the bottom of the chart.
     if (chartOptions.timestampFormatter && chartOptions.grid.millisPerLine > 0) {
-      var textUntilX = chartOptions.scrollBackwards
-        ? context.measureText(minValueString).width
-        : dimensions.width - context.measureText(minValueString).width + 4;
+      var textUntilX = dimensions.width - context.measureText(minValueString).width + 4;
       for (var t = time - (time % chartOptions.grid.millisPerLine);
            t >= oldestValidTime;
            t -= chartOptions.grid.millisPerLine) {
         var gx = timeToXPixel(t);
         // Only draw the timestamp if it won't overlap with the previously drawn one.
-        if ((!chartOptions.scrollBackwards && gx < textUntilX) || (chartOptions.scrollBackwards && gx > textUntilX))  {
+        if (gx < textUntilX) {
           // Formats the timestamp based on user specified formatting function
           // SmoothieChart.timeFormatter function above is one such formatting option
           var tx = new Date(t),
             ts = chartOptions.timestampFormatter(tx),
             tsWidth = context.measureText(ts).width;
-
-          textUntilX = chartOptions.scrollBackwards
-            ? gx + tsWidth + 2
-            : gx - tsWidth - 2;
-
+          textUntilX = gx - tsWidth - 2;
           context.fillStyle = chartOptions.labels.fillStyle;
-          if(chartOptions.scrollBackwards) {
-            context.fillText(ts, gx, dimensions.height - 2);
-          } else {
-            context.fillText(ts, gx - tsWidth, dimensions.height - 2);
-          }
+          context.fillText(ts, gx - tsWidth, dimensions.height - 2);
         }
       }
     }
@@ -805,3 +1736,97 @@
 })(typeof exports === 'undefined' ? this : exports);
 
 
+},{}],9:[function(require,module,exports){
+// shim for using process in browser
+
+var process = module.exports = {};
+var queue = [];
+var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
+
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = setTimeout(cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    clearTimeout(timeout);
+}
+
+process.nextTick = function (fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        setTimeout(drainQueue, 0);
+    }
+};
+
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+};
+
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+process.umask = function() { return 0; };
+
+},{}]},{},[2]);
