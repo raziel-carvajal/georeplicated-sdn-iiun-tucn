@@ -8,7 +8,7 @@ try {
     AtrRttMonitor.prototype._Log("AtrRttMonitor " + logMsg)
   }
   AtrRttMonitor.prototype.err = function (errMsg) {
-    AtrRttMonitor.prototype._Log("AtrRttMonitor " + errMsg)
+    AtrRttMonitor.prototype._Err("AtrRttMonitor " + errMsg)
   }
 } catch (e) {
   AtrRttMonitor.prototype.log = require('debug')('AtrRttMonitor:log') 
@@ -32,7 +32,10 @@ function AtrRttMonitor (rttCharts, atrCharts, socket, rttChartCfg,
     this._timeout = 3
     this._rttCharts = rttCharts
     this._atrCharts = atrCharts
-    var maX = max(rttCharts.length, atrCharts.length)
+    this.log("rttLen: " + rttCharts.length)
+    this.log("atrLen: " + atrCharts.length)
+    var maX = Math.max(rttCharts.length, atrCharts.length)
+
     this._chartsLen = rttCharts.length === atrCharts.length ? rttCharts.length : maX
     this._socket = socket
     this._go = { rtt: true, atr: true, zk: true }
@@ -43,18 +46,21 @@ function AtrRttMonitor (rttCharts, atrCharts, socket, rttChartCfg,
   }
   this._tsPerChart = {}
   this._charts = {}
+  var dataIds = Object.keys(this._threads)
   for (var i = 0; i < this._chartsLen; i++) {
-    this.setAttributes(i, atrChartCfg, rttChartCfg, lineCfg)
+    for (var j = 0; j < dataIds.length; j++) {
+      this.setAttributes(i, atrChartCfg, rttChartCfg, lineCfg, dataIds[j])
+    } 
   }
   this.setEvents()
     this.log("End of new AtrRttMonitor()")
 }
 
 AtrRttMonitor.prototype.setAttributes = function (i, 
-  atrChartCfg, rttChartCfg, lineCfg) {
-  switch (i) {
+  atrChartCfg, rttChartCfg, lineCfg, dataId) {
+  switch (dataId) {
     // ATR
-    case 0:
+    case "atr":
       this._tsPerChart[ this._atrCharts[i] ] = new TimeSeries()
       this._charts[ this._atrCharts[i] ] = new SmoothieChart(atrChartCfg)
       this._charts[ this._atrCharts[i] ].addTimeSeries (
@@ -64,8 +70,8 @@ AtrRttMonitor.prototype.setAttributes = function (i,
       this._charts[ this._atrCharts[i] ].streamTo(atrCnvs, 325) 
     break
     // RTT
-    case 1:
-      this._tsPerChart[ this._rttCharts[i] ] = new TimeSeries()
+    case "rtt":
+      this._tsPerChart[ this._rttCharts[i] ] = new window.TimeSeries()
       this._charts[ this._rttCharts[i] ] = new SmoothieChart(rttChartCfg)
       this._charts[ this._rttCharts[i] ].addTimeSeries (
         this._tsPerChart[ this._rttCharts[i] ], lineCfg
@@ -74,7 +80,7 @@ AtrRttMonitor.prototype.setAttributes = function (i,
       this._charts[ this._rttCharts[i] ].streamTo(rttCnvs, 325) 
     break
     // ZK
-    case 3:
+    case "zk":
       this.log("ZK case to be filled...")
     break
     default:
@@ -192,24 +198,25 @@ AtrRttMonitor.prototype.stopGettingStreams = function () {
 }
 
 },{"debug":4}],2:[function(require,module,exports){
-var lineCfg = {lineWidth:2,strokeStyle:'#19ff00'}
-
-var rttChartCfg = {millisPerPixel:42,maxValueScale:0.8,interpolation:'step',scaleSmoothing:0.205,grid:{sharpLines:true,millisPerLine:2000,verticalSections:6},labels:{fontSize:18},timestampFormatter:SmoothieChart.timeFormatter,minValue:0,maxValue:100,horizontalLines:[{color:'#ffffff',lineWidth:1,value:0},{color:'#880000',lineWidth:2,value:3333},{color:'#880000',lineWidth:2,value:-3333}]}
-
-var atrChartCfg = {millisPerPixel:42,maxValueScale:0.8,interpolation:'step',scaleSmoothing:0.205,grid:{sharpLines:true,millisPerLine:2000,verticalSections:6},labels:{fontSize:18},timestampFormatter:SmoothieChart.timeFormatter,minValue:0,maxValue:300,horizontalLines:[{color:'#ffffff',lineWidth:1,value:0},{color:'#880000',lineWidth:2,value:3333},{color:'#880000',lineWidth:2,value:-3333}]}
-
-var rttCharts = ['rtt-clu-neu', 'rtt-clu-bor', 'rtt-clu-lan']
-var atrCharts = ['atr-clu-neu', 'atr-clu-bor', 'atr-clu-lan']
-
 window.Its = require('its')
 window.SmoothieChart = require('smoothie').SmoothieChart
+window.TimeSeries  = require('smoothie').TimeSeries
 window.AtrRttMonitor = require('./AtrRttMonitor.js')
 
 // MAIN()
 document.addEventListener('DOMContentLoaded', function (event) {
+  var lineCfg = {lineWidth:2,strokeStyle:'#19ff00'}
+
+  var rttChartCfg = {millisPerPixel:42,maxValueScale:0.8,interpolation:'step',scaleSmoothing:0.205,grid:{sharpLines:true,millisPerLine:2000,verticalSections:6},labels:{fontSize:18},timestampFormatter:SmoothieChart.timeFormatter,minValue:0,maxValue:100,horizontalLines:[{color:'#ffffff',lineWidth:1,value:0},{color:'#880000',lineWidth:2,value:3333},{color:'#880000',lineWidth:2,value:-3333}]}
+
+  var atrChartCfg = {millisPerPixel:42,maxValueScale:0.8,interpolation:'step',scaleSmoothing:0.205,grid:{sharpLines:true,millisPerLine:2000,verticalSections:6},labels:{fontSize:18},timestampFormatter:SmoothieChart.timeFormatter,minValue:0,maxValue:300,horizontalLines:[{color:'#ffffff',lineWidth:1,value:0},{color:'#880000',lineWidth:2,value:3333},{color:'#880000',lineWidth:2,value:-3333}]}
+
+  var rttCharts = ['rtt-clu-neu', 'rtt-clu-bor', 'rtt-clu-lan']
+  var atrCharts = ['atr-clu-neu', 'atr-clu-bor', 'atr-clu-lan']
+
   var socket = io()
-  //var monitor = new AtrRttMonitor(rttCharts, atrCharts, socket, rttChartCfg,
-  //   atrChartCfg, lineCfg)
+  var monitor = new AtrRttMonitor(rttCharts, atrCharts, socket, rttChartCfg,
+     atrChartCfg, lineCfg)
   // Fetching ATR/RTT/ZK streams in a periodic way
   //monitor.fetchStreams()
 })
