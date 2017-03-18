@@ -19,7 +19,7 @@
 
 set -o nounset                              # Treat unset variables as an error
 
-rm -fr STOP tmp ; i=1 ; icmp=1 ; time=10 ; insertNo=10
+rm -fr STOP ../datasets/* ; i=1 ; icmp=1 ; time=10 ; insertNo=10
 lin1="64 bytes from 172.16.16.99: icmp_seq="
 lin2=" ttl=64 time="
 lin3=" ms"
@@ -37,7 +37,8 @@ while [ ! -f STOP ] ; do
     let icmp=icmp+1
     let time=time+1
   done
-  echo -e "${toConcat}" >>tmp
+  echo -e "${toConcat}" >>../datasets/rtt-clu-neu
+  echo -e "${toConcat}" >>../datasets/atr-clu-neu
   sleep 2
   let i=i+1
 done

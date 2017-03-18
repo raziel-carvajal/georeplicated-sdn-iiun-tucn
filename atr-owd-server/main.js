@@ -11,12 +11,16 @@ document.addEventListener('DOMContentLoaded', function (event) {
 
   var atrChartCfg = {millisPerPixel:42,maxValueScale:0.8,interpolation:'step',scaleSmoothing:0.205,grid:{sharpLines:true,millisPerLine:2000,verticalSections:6},labels:{fontSize:18},timestampFormatter:SmoothieChart.timeFormatter,minValue:0,maxValue:300,horizontalLines:[{color:'#ffffff',lineWidth:1,value:0},{color:'#880000',lineWidth:2,value:3333},{color:'#880000',lineWidth:2,value:-3333}]}
 
-  var rttCharts = ['rtt-clu-neu', 'rtt-clu-bor', 'rtt-clu-lan']
-  var atrCharts = ['atr-clu-neu', 'atr-clu-bor', 'atr-clu-lan']
+//  var rttCharts = ['rtt-clu-neu', 'rtt-clu-bor', 'rtt-clu-lan']
+//  var atrCharts = ['atr-clu-neu', 'atr-clu-bor', 'atr-clu-lan']
+
+  var rttCharts = ['rtt-clu-neu']
+  var atrCharts = []
+//  var atrCharts = ['atr-clu-neu']
 
   var socket = io()
   var monitor = new AtrRttMonitor(rttCharts, atrCharts, socket, rttChartCfg,
      atrChartCfg, lineCfg)
   // Fetching ATR/RTT/ZK streams in a periodic way
-  //monitor.fetchStreams()
+  //monitor.getStreams()
 })

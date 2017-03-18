@@ -23,37 +23,49 @@ function AtrRttMonitor (rttCharts, atrCharts, socket, rttChartCfg,
   }
   this.log("new AtrRttMonitor()")
   try {
-    Its.defined(rttCharts)
-    Its.defined(atrCharts)
+    Its.array(rttCharts)
+    Its.array(atrCharts)
     Its.defined(socket)
     Its.defined(rttChartCfg)
     Its.defined(atrChartCfg)
     Its.defined(lineCfg)
-    this._timeout = 3
-    this._rttCharts = rttCharts
-    this._atrCharts = atrCharts
-    this.log("rttLen: " + rttCharts.length)
-    this.log("atrLen: " + atrCharts.length)
-    var maX = Math.max(rttCharts.length, atrCharts.length)
-
-    this._chartsLen = rttCharts.length === atrCharts.length ? rttCharts.length : maX
-    this._socket = socket
-    this._go = { rtt: true, atr: true, zk: true }
-    this._threads = { rtt: undefined, atr: undefined, zk: undefined }
   } catch (e) {
     this.err("At least one argument is undefined. Aborting...")
     return undefined
   }
+  this._timeout = 3
+  this._rttCharts = rttCharts
+  this._atrCharts = atrCharts
+  var maX = Math.max(rttCharts.length, atrCharts.length)
+  this._chartsLen = rttCharts.length === atrCharts.length ? rttCharts.length : maX
+  this._socket = socket
+  this._go = { rtt: true, atr: true, zk: true }
+  this._threads = { rtt: undefined, atr: undefined, zk: undefined }
   this._tsPerChart = {}
-  this._charts = {}
+  this._charts = {} ; var set = undefined
   var dataIds = Object.keys(this._threads)
   for (var i = 0; i < this._chartsLen; i++) {
     for (var j = 0; j < dataIds.length; j++) {
-      this.setAttributes(i, atrChartCfg, rttChartCfg, lineCfg, dataIds[j])
+      set = this.setAttributes(i, atrChartCfg, rttChartCfg, lineCfg, dataIds[j])
+      try {
+        Its(set)
+      } catch (e) {
+        this.err("Item [" + j + "] to init an RTT/ATR/ZK chart will be empty.")
+        this.err("To avoid it, be sure that all RTT/ATR/ZK arrys has the same length")
+      }
     } 
   }
   this.setEvents()
-    this.log("End of new AtrRttMonitor()")
+  this.log("End of new AtrRttMonitor()")
+}
+
+AtrRttMonitor.prototype.setEvents = function () {
+  var self = this ; var eventId = undefined
+  var dataIds = Object.keys(this._threads)
+  for (var i = 0; i < dataIds.length; i++) {
+    eventId = dataIds[i] + '-answer'
+    this._socket.on(eventId, function (msg) { self.handleMsgReception(msg) })
+  } 
 }
 
 AtrRttMonitor.prototype.setAttributes = function (i, 
@@ -61,6 +73,7 @@ AtrRttMonitor.prototype.setAttributes = function (i,
   switch (dataId) {
     // ATR
     case "atr":
+      if (typeof(this._atrCharts[i]) === 'undefined') return false
       this._tsPerChart[ this._atrCharts[i] ] = new TimeSeries()
       this._charts[ this._atrCharts[i] ] = new SmoothieChart(atrChartCfg)
       this._charts[ this._atrCharts[i] ].addTimeSeries (
@@ -71,6 +84,7 @@ AtrRttMonitor.prototype.setAttributes = function (i,
     break
     // RTT
     case "rtt":
+      if (typeof(this._rttCharts[i]) === 'undefined') return false
       this._tsPerChart[ this._rttCharts[i] ] = new window.TimeSeries()
       this._charts[ this._rttCharts[i] ] = new SmoothieChart(rttChartCfg)
       this._charts[ this._rttCharts[i] ].addTimeSeries (
@@ -87,20 +101,20 @@ AtrRttMonitor.prototype.setAttributes = function (i,
       this.err("Option ["+i+"] isn't recognized to set attributes")
     break
   }
-}
-
-AtrRttMonitor.prototype.setEvents = function () {
-  var self = this
-  this._socket.on('RttAnsw', function (msg) { self.handleAnswer(msg) })
-  this._socket.on('AtrAnsw', function (msg) { self.handleAnswer(msg) })
-  //this._socket.on('ZkAnsw', function (msg) { self.handleAnswer(msg) })
+  return true
 }
 
 AtrRttMonitor.prototype.appendInTimeSeries = function (okPayl, chart) {
+  try {
+    Its.defined(okPayl)
+  } catch (e) {
+    this.err("Received paylod is empty, any series will be drawn")
+    return
+  }
   var dateMs = new Date().getTime()
   for (var i = 0; i < this._chartsLen; i++) {
-    for (var k = 0; k < okPayl.length; k++) {
-      this._tsPerChart[ chart[i] ].append(dateMs + k * 1000, okPayl[k])
+    for (var j = 0; j < okPayl.length; j++) {
+      this._tsPerChart[ chart[i] ].append(dateMs + j * 1000, okPayl[j])
     }
   }
 }
@@ -124,7 +138,7 @@ AtrRttMonitor.prototype.fillTimeSeries = function (dataId, okPayl) {
   return true
 }
 
-AtrRttMonitor.prototype.handleAnswer = function (msg) {
+AtrRttMonitor.prototype.handleMsgReception = function (msg) {
   this.log("Message reception with status [" + msg.status + "]")
   try {
     Its(msg.status === 'ok')
@@ -135,32 +149,33 @@ AtrRttMonitor.prototype.handleAnswer = function (msg) {
       var resu = this.fillTimeSeries(dataId, okPayl)
       try {
         Its(resu)
-        this._go[dataId] = false
         var self = this
-        this.log("Go[" + dataId + "] will be true after [" + okPayl + "] seconds")
+        this._go[dataId] = false
+        this.log("Go[" + dataId + "] = FALSE, set to true after [" + okPayl + "] seconds")
         setTimeout(function () {
-          self.log("Go[" + dataId + "] = TRUE")
+          self.log("Doing: Go[" + dataId + "] = TRUE")
           self._go[ dataId ] = true
         }, okPayl.length * 1000)
       } catch (e) {
+        this.log("Letting: Go[" + dataId + "] = TRUE")
         this._go[dataId] = true
       }
     } catch (e) {
       this.err("Dataset [" + dataId + "] isn't recognized")
     }
   } catch (e) {
-    this.err("KoMsg info: " + msg.koMsg)
+    this.err("KoMsg received: " + msg.payload)
   }
 }
 
-AtrRttMonitor.prototype.fetchStreams = function () {
+AtrRttMonitor.prototype.getStreams = function () {
   var dataIds = Object.keys(this._threads)
   var self = this
   for (var i = 0; i < dataIds.length; i++) {
     this._threads[ dataIds[i] ] = setInterval(function () {
-      self.log("Is GO[" + dataIds[i] + "] TRUE ?")
+      self.log("Is Go[" + dataIds[i] + "] true?")
       if (this._go[ dataIds[i] ]) {
-        self.log("GO[" + dataIds[i] + "] is TRUE")
+        self.log("Go[" + dataIds[i] + "] is TRUE")
         self.log("Getting streams of [" + dataIds[i] + "]")
         var msg = {
           header: 'get-' + dataIds[i],
@@ -180,7 +195,7 @@ AtrRttMonitor.prototype.fetchStreams = function () {
             default:
             break
           }
-          self._socket.emit('RttHandler', msg) 
+          self._socket.emit(msg.header, msg) 
         }
       } else {
         self.log("Still waiting for GO to be true")
@@ -211,14 +226,18 @@ document.addEventListener('DOMContentLoaded', function (event) {
 
   var atrChartCfg = {millisPerPixel:42,maxValueScale:0.8,interpolation:'step',scaleSmoothing:0.205,grid:{sharpLines:true,millisPerLine:2000,verticalSections:6},labels:{fontSize:18},timestampFormatter:SmoothieChart.timeFormatter,minValue:0,maxValue:300,horizontalLines:[{color:'#ffffff',lineWidth:1,value:0},{color:'#880000',lineWidth:2,value:3333},{color:'#880000',lineWidth:2,value:-3333}]}
 
-  var rttCharts = ['rtt-clu-neu', 'rtt-clu-bor', 'rtt-clu-lan']
-  var atrCharts = ['atr-clu-neu', 'atr-clu-bor', 'atr-clu-lan']
+//  var rttCharts = ['rtt-clu-neu', 'rtt-clu-bor', 'rtt-clu-lan']
+//  var atrCharts = ['atr-clu-neu', 'atr-clu-bor', 'atr-clu-lan']
+
+  var rttCharts = ['rtt-clu-neu']
+  var atrCharts = []
+//  var atrCharts = ['atr-clu-neu']
 
   var socket = io()
   var monitor = new AtrRttMonitor(rttCharts, atrCharts, socket, rttChartCfg,
      atrChartCfg, lineCfg)
   // Fetching ATR/RTT/ZK streams in a periodic way
-  //monitor.fetchStreams()
+  //monitor.getStreams()
 })
 
 },{"./AtrRttMonitor.js":1,"its":6,"smoothie":8}],3:[function(require,module,exports){

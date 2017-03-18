@@ -2,15 +2,45 @@ module.exports = RttStreamer
 
 var Its = require('its')
 var Sh = require('shelljs')
-var Log = typeof window === 'undefined' ? require('debug')('RttStreamer') : console.log
-//TODO implement one lock (in JS code and in RTT/ATR bash scripts) to avoid 
-//  discarting values from the stream. Currently a "negligible" set of
-//  values might be lost from the stream.
+
+try {
+  Its.defined(window)
+  RttStreamer.prototype._Log = console.info.bind(console)
+  RttStreamer.prototype._Err = console.error.bind(console)
+  RttStreamer.prototype.log = function (logMsg) {
+    RttStreamer.prototype._Log("RttStreamer " + logMsg)
+  }
+  RttStreamer.prototype.err = function (errMsg) {
+    RttStreamer.prototype._Err("RttStreamer " + errMsg)
+  }
+} catch (e) {
+  RttStreamer.prototype.log = require('debug')('RttStreamer:log')
+  RttStreamer.prototype.err = require('debug')('RttStreamer:err')
+}
+
+//TODO Ideally, you have to implement one lock (in JS code and in RTT/ATR bash scripts)
+//  to avoid discarting values from the stream. Currently a "negligible" set of values
+//  might be lost from the stream. On the other hand, this is the price to pay while
+//  streaming
 
 function RttStreamer (file, timeout) {
   if (!(this instanceof RttStreamer)) return new RttStreamer(file, timeout)
+  try {
+    Its.string(file)
+    Its.number(timeout)
+  } catch (e) {
+    this.err("At least one argument hasn't the appropiate type. Aborting...")
+    return
+  }
   this._initTryNo = 0
   this._src = file //full path of file to read
+  this._srcBaseName = file.split("../datasets/")[1]
+  try {
+    Its(this._srcBaseName !== '')
+  } catch (e) {
+    this.err("Source file hasn't the appropiate format. Aborting...")
+    return  
+  }
   this._latr = undefined
   this._readyToR = false
   this._buffId = 0
@@ -32,7 +62,7 @@ RttStreamer.prototype.parseLine = function (line) {
     var array = line.split("icmp_seq=")
     Its(array.length !== 1)
   } catch (e) {
-    Log("Current line doesn't contain any data")
+    this.err("Current line doesn't contain any data")
     return undefined
   }
   //TODO remember to add one when you are in production mode
@@ -41,7 +71,7 @@ RttStreamer.prototype.parseLine = function (line) {
   var ind = parseInt(array[1].split(" ")[0])
   // RTT/2 in milliseconds
   var val = parseFloat(array[1].split(" ")[2].split("=")[1])
-  //Log("Current indx=%d && val=", ind, val)
+  //this.log("Current indx=%d && val=", ind, val)
   return { 'indx': ind, 'val': val }
 }
 
@@ -50,12 +80,12 @@ RttStreamer.prototype.initialize = function () {
   try {
     Its.defined(map)
     this._latr = map.indx
-    Log("Init went well, first index: %d", this._latr)
+    this.log("Init went well, first index: %d", this._latr)
   } catch(e) {
     this._initTryNo++
-    Log("RTT file is not ready for reading [%d]", this._initTryNo)
+    this.err("RTT file is not ready for reading [%d]", this._initTryNo)
     if (this._initTryNo >= this._initTryNoLim) {
-      Log("Maximum number of tries to init() was reached")
+      this.err("Maximum number of tries to init() was reached")
       clearInterval(this._initThread)
       this.stop()
     } else {
@@ -65,7 +95,7 @@ RttStreamer.prototype.initialize = function () {
       }, this._initTimeout)
     }
   } finally {
-    Log("Intialize call is finished with initTryNo: %d", this._initTryNo)
+    this.log("Intialize call is finished with initTryNo: %d", this._initTryNo)
   }
 }
 
@@ -74,20 +104,21 @@ RttStreamer.prototype.start = function () {
   this._startThread = setInterval(function () {
     try {
       Its.defined(self._latr)
-      Log("Calling start()")
+      self.log("Calling start()")
     } catch (e) {
-      Log("Initialization phase of RttStreamer is not yet completed")
+      self.err("Initialization phase of RttStreamer is not yet completed")
       return
     }
     var go = self.readLatest()
     try {
       Its(go)
-      //self._failedTries = 0
+      self.log("Ready to go. Failed tries variable is set to zero")
+      self._failedTries = 0
     } catch (e) {
       self._failedTries++
-      Log("Fail [%d] while trying to read. Probably, source file is not being updated anymore", self._failedTries)
+      self.err("Fail [%d] while trying to read. Probably, source file is not being updated anymore", self._failedTries)
       if (self._failedTries >= self._maxFails) {
-        Log("Maximum numbers of tries to read source file was reached")
+        self.log("Maximum numbers of tries to read source file was reached")
         self.stop()
       }
       return
@@ -104,13 +135,13 @@ RttStreamer.prototype.readLatest = function () {
   try {
     Its.defined(map)
   } catch(e) {
-    Log("WARNING: the latest line from source file is empty")
+    this.err("WARNING: the latest line from source file is empty")
     return false
   }
-  Log("Fetch chunk from lines %d to %d", this._latr, map.indx)
+  this.log("Fetch chunk from lines %d to %d", this._latr, map.indx)
   var linesToRead = map.indx - this._latr
   if (linesToRead <= 0) {
-    Log("WARNING: any new line was found")
+    this.log("WARNING: any new line was found")
     return false
   }
   this._latr = map.indx
@@ -124,13 +155,12 @@ RttStreamer.prototype.readLatest = function () {
     } catch (e) {/*XXX Nothing to cath if read line hasn't PING format*/}
   }
   this._buff[this._buffId] = buff
-  //Log("Current buffer to store with index [%d]=", this._buffId, this._buff[this._buffId].toString())
+  //this.log("Current buffer to store with index [%d]=", this._buffId, this._buff[this._buffId].toString())
   return true
 }
 
 RttStreamer.prototype.stop = function () {
-  //TODO use Its!
-  Log("RttStreamer stops its execution")
+  this.log("RttStreamer stops its execution")
   this._readyToR = false
   this._latr = undefined
   clearInterval(this._startThread)
