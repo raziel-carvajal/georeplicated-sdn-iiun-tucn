@@ -19,7 +19,7 @@
 
 set -o nounset                              # Treat unset variables as an error
 
-waitForIperfServ=10 ; rm -fr datasets/*.log *-links.dat STOP
+waitForIperfServ=10 ; rm -fr datasets/* *-links.dat STOP
 echo "Deploying NetTool..." ; nodesNo=`cat mapNetTool | wc -l`
 
 #XXX this loop was include to measure ATR/RTT from CLU, which is the node
@@ -30,7 +30,7 @@ for (( CNTR=1; CNTR<=${nodesNo}; CNTR+=1 )); do
   line=`cat mapNetTool | head -${CNTR} | tail -1`
   nodeId=`echo ${line} | awk '{print $1}'`
   echo -e "\tLaunching IperfServer on site: ${nodeId}"
-  ssh ${nodeId}-nt "rm -fr *.log ; ./iperf -p 5210 -s &>/dev/null &"
+  ssh ${nodeId}-nt "rm -fr atr-* rtt-* ; ./iperf -p 5210 -s &>/dev/null &"
   echo -e "\tDONE"
   #Getting links of each node
   cat linksNetTool | grep ${nodeId} | awk '{print $2}' >${nodeId}-links.dat
@@ -48,8 +48,8 @@ for (( CNTR=1; CNTR<=${nodesNo}; CNTR+=1 )); do
     dstIp=`cat ${links} | head -${i} | tail -1`
     dstId=`cat mapNetTool | grep ${dstIp} | awk '{print $1}'`
     logF="${nodeId}-${dstId}"
-    atrCm="./iperf -p 5210 -c ${dstIp} -t 360 -i 2 >${logF}-atr.log &"
-    rttCm="ping -i 2 ${dstIp} >${logF}-rtt.log &"
+    atrCm="./iperf -p 5210 -c ${dstIp} -t 360 -i 1 >atr-${logF} &"
+    rttCm="ping -i 2 ${dstIp} >rtt-${logF} &"
     echo -e "\tMeasuring ATR and OWD from link: ${logF}"
     ssh ${nodeId}-nt "${atrCm}" 
     ssh ${nodeId}-nt "${rttCm}" 
@@ -68,8 +68,8 @@ while [ ! -f 'STOP' ] ; do
     for (( i=1; i<=${endPoints}; i+=1 )); do
       dstIp=`cat ${links} | head -${i} | tail -1`
       dstId=`cat mapNetTool | grep ${dstIp} | awk '{print $1}'`
-      atrF="${nodeId}-${dstId}-atr.log" 
-      rttF="${nodeId}-${dstId}-rtt.log"
+      atrF="atr-${nodeId}-${dstId}" 
+      rttF="rtt-${nodeId}-${dstId}"
       ssh ${nodeId}-nt "cat ${atrF}" >datasets/atr-tmp.log
       ssh ${nodeId}-nt "cat ${rttF}" >datasets/rtt-tmp.log
       mv datasets/atr-tmp.log datasets/${atrF}

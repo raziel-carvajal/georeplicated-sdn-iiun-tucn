@@ -23,15 +23,24 @@ try {
 //  might be lost from the stream. On the other hand, this is the price to pay while
 //  streaming
 
-function RttStreamer (file, timeout) {
-  if (!(this instanceof RttStreamer)) return new RttStreamer(file, timeout)
+function RttStreamer (file, timeout, measureType) {
+  if (!(this instanceof RttStreamer)) return new RttStreamer(file, timeout, measureType)
   try {
     Its.string(file)
     Its.number(timeout)
+    Its.string(measureType)
   } catch (e) {
     this.err("At least one argument hasn't the appropiate type. Aborting...")
-    return
+    return undefined
   }
+  var okMeasureType = measureType === 'rtt' || measureType === 'atr' || measureType === 'zk' ? true : false
+  try {
+    Its(okMeasureType)
+  } catch (e) {
+    this.err("Unknown measure type [%s]. Aborting...", measureType)
+    return undefined    
+  }
+  this._measureType = measureType
   this._initTryNo = 0
   this._src = file //full path of file to read
   this._srcBaseName = file.split("../datasets/")[1]
@@ -39,7 +48,7 @@ function RttStreamer (file, timeout) {
     Its(this._srcBaseName !== '')
   } catch (e) {
     this.err("Source file hasn't the appropiate format. Aborting...")
-    return  
+    return undefined
   }
   this._latr = undefined
   this._readyToR = false
@@ -57,6 +66,24 @@ function RttStreamer (file, timeout) {
 }
 
 RttStreamer.prototype.parseLine = function (line) {
+  switch (this._measureType) {
+    case 'rtt':
+      return this.parseRttline(line)
+    break
+    case 'atr':
+      return this.parseAtrline(line)
+    break
+    case 'zk':
+      this.log("Parse line for ZK to be completed...")
+    break
+    default:
+      //XXX this case can't take place!
+      this.err("Measure [%s] is not recognized", this._measureType)
+    break
+  }
+}
+
+RttStreamer.prototype.parseRttline = function (line) {
   try {
     Its.defined(line)
     var array = line.split("icmp_seq=")
@@ -65,14 +92,43 @@ RttStreamer.prototype.parseLine = function (line) {
     this.err("Current line doesn't contain any data")
     return undefined
   }
-  //TODO remember to add one when you are in production mode
-  // one unit is added to get the line number of source file
-  //var ind = parseInt(array[1].split(" ")[0]) + 1
   var ind = parseInt(array[1].split(" ")[0])
-  // RTT/2 in milliseconds
   var val = parseFloat(array[1].split(" ")[2].split("=")[1])
-  //this.log("Current indx=%d && val=", ind, val)
-  return { 'indx': ind, 'val': val }
+  try {
+    Its.number(ind)
+    Its.number(val)
+    //this.log("RTT: Current indx=%d && val=", ind, val)
+    return { 'indx': ind, 'val': val }
+  } catch (e) {
+    this.err("Pair: (" + ind + ", " + val + ") is not numeric")
+    return undefined  
+  }
+}
+
+RttStreamer.prototype.parseAtrline = function (line) {
+  try {
+    Its.defined(line)
+    var array = line.split(" ")
+    Its(array.length !== 1)
+  } catch (e) {
+    this.err("Current line doesn't contain any data")
+    return undefined
+  }
+
+  var ind = array[4].split("-")[0]
+  var val = array[ array.length - 2 ]
+  //this.log("Line: %s", line)
+  ind = parseInt(ind)
+  val = parseFloat(val)
+  try {
+    Its.number(ind)
+    Its.number(val)
+    //this.log("ATR: Current indx=%d && val=", ind, val)
+    return { 'indx': ind, 'val': val }
+  } catch (e) {
+    this.err("Pair: (" + ind + ", " + val + ") is not numeric")
+    return undefined  
+  }
 }
 
 RttStreamer.prototype.initialize = function () {

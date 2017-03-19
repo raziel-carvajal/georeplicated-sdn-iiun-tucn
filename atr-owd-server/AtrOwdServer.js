@@ -47,11 +47,11 @@ function AtrOwdServer (port, webPage, rttStreams, atrStreams, readFreq) {
   for (var i = 0; i < this._streamsNo; i++) {
     this.log("New RTT stream with key [%s]", rttKeys[i])
     this._rttReadsNo[ rttKeys[i] ] = 0
-    this._rttStreams[ rttKeys[i] ] = new RttStreamer(rttStreams[ rttKeys[i] ], readFreq)
+    this._rttStreams[ rttKeys[i] ] = new RttStreamer(rttStreams[ rttKeys[i] ], readFreq, "rtt")
     this.bootStream( this._rttStreams[ rttKeys[i] ], rttKeys[i] )
     this.log("New ATR stream with key [%s]", atrKeys[i])
     this._atrReadsNo[ atrKeys[i] ] = 0
-    this._atrStreams[ atrKeys[i] ] = new RttStreamer(atrStreams[ atrKeys[i] ], readFreq)
+    this._atrStreams[ atrKeys[i] ] = new RttStreamer(atrStreams[ atrKeys[i] ], readFreq, "atr")
     this.bootStream( this._atrStreams[ atrKeys[i] ], atrKeys[i] )
 
   }
@@ -186,20 +186,21 @@ AtrOwdServer.prototype.streamsHandler = function (msg, eventId) {
 
 AtrOwdServer.prototype.getStream = function (stream, streamId, streamNo) {
   var readNo = streamNo[streamId]
-  this.log("Reading stream with try number: %d", readNo)
+  this.log("Reading stream [%s]", streamId)
   try {
     Its(stream._readyToR)
   } catch (e) {
-    this.err("RttStreamer is not ready to read")
+    this.err("RttStreamer[%s] is not ready to read", streamId)
     return undefined
   }
   var current = stream._buff[readNo]
   try {
     Its.defined(current)
-    this.log("Buffer of index [%d] is: " + current.toString(), readNo)
+    this.log("Buffer [%s] with index [%d] is: " + current.toString(), streamId, readNo)
     delete stream._buff[readNo]
     readNo++
     streamNo[streamId] = readNo
+    this.log("Current keys of buffer [%s] are: " + Object.keys(stream._buff).toString(), streamId)
   } catch (e) {
     this.err("ERROR: there is no entry for index: %d", readNo)
     return undefined

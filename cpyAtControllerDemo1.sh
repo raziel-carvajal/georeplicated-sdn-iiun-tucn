@@ -26,11 +26,11 @@ fSer=${fSer}"${dstSer}/AtrOwdServer.js "
 fSer=${fSer}"${dstSer}/BootstrapRttAwdServer.js "
 fSer=${fSer}"${dstSer}/RttStreamer.js "
 fSer=${fSer}"${dstSer}/TestRttStreamer.js "
-fSer=${fSer}"${dstSer}/atr-rtt-monitor.js "
 fSer=${fSer}"${dstSer}/do-rtt-streamer-test.sh "
 fSer=${fSer}"${dstSer}/emulate-rtt-stream.sh "
 fSer=${fSer}"${dstSer}/index.html "
 fSer=${fSer}"${dstSer}/package.json "
+fSer=${fSer}"${dstSer}/lib/NetMonitor.js "
 
 scp ${fSer} dionasys-controller:~/iiun-scripts/georeplicated-sdn-iiun-tucn/atr-owd-server
 #scp ${fCli} dionasys-controller:~/iiun-scripts/georeplicated-sdn-iiun-tucn/atr-owd-cli

@@ -33,7 +33,7 @@ sleep 3
 echo -e "\tDONE"
 
 echo "Launch server to fetch stream of ATR/RTT"
-DEBUG=RttStreamer,AtrOwdServer node BootstrapRttAwdServer.js &> server.log &
+DEBUG=RttStreamer:*,AtrOwdServer:* node BootstrapRttAwdServer.js &> server.log &
 sleep 3
 echo -e "\tDONE"
 

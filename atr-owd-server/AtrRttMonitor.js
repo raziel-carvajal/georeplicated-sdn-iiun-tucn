@@ -112,7 +112,7 @@ AtrRttMonitor.prototype.setAttributes = function (i,
 AtrRttMonitor.prototype.appendInTimeSeries = function (okPayl, streamId) {
   try {
     Its.defined(okPayl)
-    this.log("OkPayl.length: "+okPayl.length)
+    this.log("Payload [" + okPayl.toString() + "] of strem [" + streamId + "]")
   } catch (e) {
     this.err("Received paylod is empty, any series will be drawn")
     return
@@ -208,6 +208,7 @@ AtrRttMonitor.prototype.getStreams = function () {
   var dataIds = Object.keys(this._threads)
   for (var i = 0; i < dataIds.length; i++) {
     this._threads[ dataIds[i] ] = setInterval(function (dataId) {
+      self.log("Doing request for: " + dataId)
       self.doRequest(dataId)
     }, this._timeout * 1000, dataIds[i])  
   }
