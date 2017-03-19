@@ -48,7 +48,7 @@ for (( CNTR=1; CNTR<=${nodesNo}; CNTR+=1 )); do
     dstIp=`cat ${links} | head -${i} | tail -1`
     dstId=`cat mapNetTool | grep ${dstIp} | awk '{print $1}'`
     logF="${nodeId}-${dstId}"
-    atrCm="./iperf -p 5210 -c ${dstIp} -t 360 -i 1 >atr-${logF} &"
+    atrCm="./iperf -p 5210 -c ${dstIp} -t 3600 -i 1 >atr-${logF} &"
     rttCm="ping -i 2 ${dstIp} >rtt-${logF} &"
     echo -e "\tMeasuring ATR and OWD from link: ${logF}"
     ssh ${nodeId}-nt "${atrCm}" 

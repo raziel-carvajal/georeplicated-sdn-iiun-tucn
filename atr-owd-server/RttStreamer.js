@@ -14,8 +14,8 @@ try {
     RttStreamer.prototype._Err("RttStreamer " + errMsg)
   }
 } catch (e) {
-  RttStreamer.prototype.log = require('debug')('RttStreamer:log')
-  RttStreamer.prototype.err = require('debug')('RttStreamer:err')
+  RttStreamer.prototype.log = require('debug')('RttStreamer:INFO')
+  RttStreamer.prototype.err = require('debug')('RttStreamer:ERROR')
 }
 
 //TODO Ideally, you have to implement one lock (in JS code and in RTT/ATR bash scripts)
@@ -40,8 +40,8 @@ function RttStreamer (file, timeout, measureType) {
     this.err("Unknown measure type [%s]. Aborting...", measureType)
     return undefined    
   }
-  this._measureType = measureType
   this._initTryNo = 0
+  this._measureType = measureType
   this._src = file //full path of file to read
   this._srcBaseName = file.split("../datasets/")[1]
   try {
@@ -56,22 +56,42 @@ function RttStreamer (file, timeout, measureType) {
   this._buff = {}
   this._readTimeout = timeout * 1000
   this._startThread = undefined
-  this._initThread = undefined
   this._readsBefStart = 2
   this._initTimeout = 3000
-  this._initTryNoLim= 5
   this._maxFails = 5
   this._failedTries = 0
   this.initialize()
 }
 
+RttStreamer.prototype.initialize = function () {
+  var line = this.choseLine()
+  var map = this.parseLine(line)
+  try {
+    Its.defined(map)
+    this.log("Init went well, first index: %d", this._latr)
+    try {
+      Its.defined(this._latr)
+    } catch (e) {
+      this._latr = map.indx
+    }
+  } catch(e) {
+    this._initTryNo++
+    this.err("RTT file is not ready for reading [%d]", this._initTryNo)
+    var self = this
+    setTimeout(function () {
+      self.initialize()
+    }, this._initTimeout)
+  }
+}
+
 RttStreamer.prototype.parseLine = function (line) {
+  var l
   switch (this._measureType) {
     case 'rtt':
-      return this.parseRttline(line)
+      l = this.parseRttline(line)
     break
     case 'atr':
-      return this.parseAtrline(line)
+      l = this.parseAtrline(line)
     break
     case 'zk':
       this.log("Parse line for ZK to be completed...")
@@ -81,6 +101,7 @@ RttStreamer.prototype.parseLine = function (line) {
       this.err("Measure [%s] is not recognized", this._measureType)
     break
   }
+  return l
 }
 
 RttStreamer.prototype.parseRttline = function (line) {
@@ -114,16 +135,12 @@ RttStreamer.prototype.parseAtrline = function (line) {
     this.err("Current line doesn't contain any data")
     return undefined
   }
-
-  var ind = array[4].split("-")[0]
-  var val = array[ array.length - 2 ]
-  //this.log("Line: %s", line)
-  ind = parseInt(ind)
-  val = parseFloat(val)
+  var ind = parseInt(array[3].split("-")[0])
+  var val = parseFloat(array[ array.length - 2 ])
+  //this.log("ATR: Current indx=%d && val=", ind, val)
   try {
     Its.number(ind)
     Its.number(val)
-    //this.log("ATR: Current indx=%d && val=", ind, val)
     return { 'indx': ind, 'val': val }
   } catch (e) {
     this.err("Pair: (" + ind + ", " + val + ") is not numeric")
@@ -131,29 +148,26 @@ RttStreamer.prototype.parseAtrline = function (line) {
   }
 }
 
-RttStreamer.prototype.initialize = function () {
-  var map = this.parseLine( Sh.tail({ '-n': 1 } , this._src) )
-  try {
-    Its.defined(map)
-    this._latr = map.indx
-    this.log("Init went well, first index: %d", this._latr)
-  } catch(e) {
-    this._initTryNo++
-    this.err("RTT file is not ready for reading [%d]", this._initTryNo)
-    if (this._initTryNo >= this._initTryNoLim) {
-      this.err("Maximum number of tries to init() was reached")
-      clearInterval(this._initThread)
-      this.stop()
-    } else {
-      var self = this
-      this._initThread = setInterval(function () {
-        self.initialize()
-      }, this._initTimeout)
-    }
-  } finally {
-    this.log("Intialize call is finished with initTryNo: %d", this._initTryNo)
+RttStreamer.prototype.choseLine = function () {
+  var l
+  switch (this._measureType) {
+    case 'rtt':
+      l = Sh.tail({ '-n': 1 }, this._src)
+    break
+    case 'atr':
+      l = Sh.tail({ '-n': 2 }, this._src).split("\n")[0]
+    break
+    case 'zk':
+      //TODO fill with ZK line format
+      //l = ?
+    break
+    default:
+    break
   }
+  return l
 }
+
+
 
 RttStreamer.prototype.start = function () {
   var self = this
@@ -187,7 +201,8 @@ RttStreamer.prototype.start = function () {
 }
 
 RttStreamer.prototype.readLatest = function () {
-  var map = this.parseLine( Sh.tail({ '-n': 1 } , this._src) )
+  var line = this.choseLine()
+  var map = this.parseLine(line)
   try {
     Its.defined(map)
   } catch(e) {
@@ -202,7 +217,8 @@ RttStreamer.prototype.readLatest = function () {
   }
   this._latr = map.indx
   var buff = []
-  var latestLines = ( Sh.tail({ '-n': linesToRead } , this._src) ).stdout.split("\n")
+  var latestLines = ( Sh.tail({ '-n': linesToRead } , this._src) ).split("\n")
+  if (this._measureType === 'atr') { latestLines.pop() }
   for (var i = 0; i < latestLines.length; i++) {
     map = this.parseLine( latestLines[i] )
     try {
