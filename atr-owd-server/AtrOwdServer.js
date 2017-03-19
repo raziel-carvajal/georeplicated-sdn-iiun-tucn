@@ -126,7 +126,8 @@ AtrOwdServer.prototype.listen = function () {
 
 
 AtrOwdServer.prototype.streamsHandler = function (msg, eventId) {
-  var eventAnswId = undefined, stream = undefined, streamNo = undefined
+  var streamNo = undefined
+  var eventAnswId = undefined, stream = undefined
   var okMsg = { 'status': 'ok', payload: undefined }
   var koMsg = { 'status': 'ko', payload: undefined }
   switch (eventId) {
@@ -134,16 +135,19 @@ AtrOwdServer.prototype.streamsHandler = function (msg, eventId) {
       eventAnswId = 'rtt-answer'
       stream = this._rttStreams
       streamNo = this._rttReadsNo
+      measureType = 'rtt'
     break
     case 'get-atr':
       eventAnswId = 'atr-answer'
       stream = this._atrStreams
       streamNo = this._atrReadsNo
+      measureType = 'atr'
     break
     case  'get-zk':
       eventAnswId = 'zk-answer'
       stream = this._zkStreams
       streamNo = this._zkReadsNo
+      measureType = 'zk'
     break
     default:
       this.err("This call shouldn't take place")

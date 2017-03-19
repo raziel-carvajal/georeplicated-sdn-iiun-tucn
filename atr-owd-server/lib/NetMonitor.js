@@ -39,14 +39,12 @@ function AtrRttMonitor (rttCharts, atrCharts, socket, rttChartCfg,
   var maX = Math.max(rttCharts.length, atrCharts.length)
   this._chartsLen = rttCharts.length === atrCharts.length ? rttCharts.length : maX
   this._socket = socket
-  this._go = { rtt: true, atr: true, zk: true }
-  this._threads = { rtt: undefined, atr: undefined, zk: undefined }
-  this._tsPerChart = {}
-  this._charts = {} ; var set = undefined
-  var dataIds = Object.keys(this._threads)
+  this._measureTypes = ['rtt', 'atr', 'zk']
+  this._go = {}, this._threads = {}, this._tsPerChart = {}, this._charts = {}
+  var set = undefined
   for (var i = 0; i < this._chartsLen; i++) {
-    for (var j = 0; j < dataIds.length; j++) {
-      set = this.setAttributes(i, atrChartCfg, rttChartCfg, lineCfg, dataIds[j])
+    for (var j = 0; j < this._measureTypes.length; j++) {
+      set = this.setAttributes(i, atrChartCfg, rttChartCfg, lineCfg, this._measureTypes[j])
       try {
         Its(set)
       } catch (e) {
@@ -61,10 +59,12 @@ function AtrRttMonitor (rttCharts, atrCharts, socket, rttChartCfg,
 
 AtrRttMonitor.prototype.setEvents = function () {
   var self = this ; var eventId = undefined
-  var dataIds = Object.keys(this._threads)
+  var dataIds = this._measureTypes
   for (var i = 0; i < dataIds.length; i++) {
     eventId = dataIds[i] + '-answer'
-    this._socket.on(eventId, function (msg) { self.handleMsgReception(msg) })
+    this._socket.on(eventId, function (msg) {
+      self.handleMsgReception(msg)
+    })
   } 
 }
 
@@ -80,7 +80,10 @@ AtrRttMonitor.prototype.setAttributes = function (i,
        this._tsPerChart[ this._atrCharts[i] ], lineCfg
       )
       var atrCnvs = document.getElementById(this._atrCharts[i])
-      this._charts[ this._atrCharts[i] ].streamTo(atrCnvs, 325) 
+      this._charts[ this._atrCharts[i] ].streamTo(atrCnvs, 325)
+      this.log("SetAttrs for: " + this._atrCharts[i])
+      this._go[ this._atrCharts[i] ] = true
+      this._threads[ this._atrCharts[i] ] = undefined 
     break
     // RTT
     case "rtt":
@@ -92,6 +95,9 @@ AtrRttMonitor.prototype.setAttributes = function (i,
       )
       var rttCnvs = document.getElementById(this._rttCharts[i])
       this._charts[ this._rttCharts[i] ].streamTo(rttCnvs, 325) 
+      this.log("SetAttrs for: " + this._rttCharts[i])
+      this._go[ this._rttCharts[i] ] = true
+      this._threads[ this._rttCharts[i] ] = undefined 
     break
     // ZK
     case "zk":
@@ -104,28 +110,28 @@ AtrRttMonitor.prototype.setAttributes = function (i,
   return true
 }
 
-AtrRttMonitor.prototype.appendInTimeSeries = function (okPayl, chart) {
+AtrRttMonitor.prototype.appendInTimeSeries = function (okPayl, streamId) {
   try {
     Its.defined(okPayl)
+    this.log("OkPayl.length: "+okPayl.length)
   } catch (e) {
     this.err("Received paylod is empty, any series will be drawn")
     return
   }
   var dateMs = new Date().getTime()
-  for (var i = 0; i < this._chartsLen; i++) {
-    for (var j = 0; j < okPayl.length; j++) {
-      this._tsPerChart[ chart[i] ].append(dateMs + j * 1000, okPayl[j])
-    }
+  for (var j = 0; j < okPayl.length; j++) {
+    this._tsPerChart[ streamId ].append(dateMs + j * 1000, okPayl[j])
   }
 }
 
-AtrRttMonitor.prototype.fillTimeSeries = function (dataId, okPayl) {
+AtrRttMonitor.prototype.fillTimeSeries = function (streamId, okPayl) {
+  var dataId = streamId.split("-")[0]
   switch (dataId) {
     case "rtt":
-      this.appendInTimeSeries(okPayl, this._rttCharts)
+      this.appendInTimeSeries(okPayl, streamId)
     break
     case "atr":
-      this.appendInTimeSeries(okPayl, this._atrCharts)
+      this.appendInTimeSeries(okPayl, streamId)
      break
     case "zk":
       this.log("TODO: Fill TimeSeries of ZK dataset")
@@ -145,13 +151,14 @@ AtrRttMonitor.prototype.handleMsgReception = function (msg) {
     var dataId = msg.payload.dataId
     var okPayl = msg.payload.okPayl
     try {
-      Its.defined(this._go[ dataId ])
+      this.log("FILE: " + dataId)
+      Its(this._go[ dataId ])
       var resu = this.fillTimeSeries(dataId, okPayl)
       try {
         Its(resu)
         var self = this
         this._go[dataId] = false
-        this.log("Go[" + dataId + "] = FALSE, set to true after [" + okPayl + "] seconds")
+        this.log("Go[" + dataId + "] = FALSE, set to true after [" + okPayl.length + "] seconds")
         setTimeout(function () {
           self.log("Doing: Go[" + dataId + "] = TRUE")
           self._go[ dataId ] = true
@@ -168,39 +175,42 @@ AtrRttMonitor.prototype.handleMsgReception = function (msg) {
   }
 }
 
+AtrRttMonitor.prototype.doRequest = function (streamId) {
+  this.log("Is Go[" + streamId + "] true?")
+  if (this._go[ streamId ]) {
+    this.log("Go[" + streamId + "] is TRUE. Getting its stream")
+    //XXX be sure that streamId has the format (rtt||atr||zk)-*
+    var dataId = streamId.split("-")[0]
+    var msg = {
+      header: 'get-' + dataId,
+      payload: { 'streamId': undefined }
+    }
+    switch (dataId) {
+      case "rtt":
+        msg.payload.streamId = streamId
+      break
+      case "atr":
+        msg.payload.streamId = streamId
+      break
+      case "zk":
+        this.log("Set request ot get ZK stream")
+      break
+      default:
+      break
+    }
+    this._socket.emit(msg.header, msg) 
+  } else {
+    this.log("Still waiting for Go[" + streamId + "] to be true")
+  }
+}
+
 AtrRttMonitor.prototype.getStreams = function () {
-  var dataIds = Object.keys(this._threads)
   var self = this
+  var dataIds = Object.keys(this._threads)
   for (var i = 0; i < dataIds.length; i++) {
-    this._threads[ dataIds[i] ] = setInterval(function () {
-      self.log("Is Go[" + dataIds[i] + "] true?")
-      if (this._go[ dataIds[i] ]) {
-        self.log("Go[" + dataIds[i] + "] is TRUE")
-        self.log("Getting streams of [" + dataIds[i] + "]")
-        var msg = {
-          header: 'get-' + dataIds[i],
-          payload: { streamId: undefined }
-        }
-        for (var j = 0; j < this._chartsLen; j++) {
-          switch (dataIds[i]) {
-            case "rtt":
-              msg.payload.streamId = self._rttCharts[j]
-            break
-            case "atr":
-              msg.payload.streamId = self._atrCharts[j]
-            break
-            case "zk":
-              self.log("Set request ot get ZK stream")
-            break
-            default:
-            break
-          }
-          self._socket.emit(msg.header, msg) 
-        }
-      } else {
-        self.log("Still waiting for GO to be true")
-      }
-    }, this._timeout * 1000)
+    this._threads[ dataIds[i] ] = setInterval(function (dataId) {
+      self.doRequest(dataId)
+    }, this._timeout * 1000, dataIds[i])  
   }
 }
 
@@ -217,28 +227,6 @@ window.Its = require('its')
 window.SmoothieChart = require('smoothie').SmoothieChart
 window.TimeSeries  = require('smoothie').TimeSeries
 window.AtrRttMonitor = require('./AtrRttMonitor.js')
-
-// MAIN()
-document.addEventListener('DOMContentLoaded', function (event) {
-  var lineCfg = {lineWidth:2,strokeStyle:'#19ff00'}
-
-  var rttChartCfg = {millisPerPixel:42,maxValueScale:0.8,interpolation:'step',scaleSmoothing:0.205,grid:{sharpLines:true,millisPerLine:2000,verticalSections:6},labels:{fontSize:18},timestampFormatter:SmoothieChart.timeFormatter,minValue:0,maxValue:100,horizontalLines:[{color:'#ffffff',lineWidth:1,value:0},{color:'#880000',lineWidth:2,value:3333},{color:'#880000',lineWidth:2,value:-3333}]}
-
-  var atrChartCfg = {millisPerPixel:42,maxValueScale:0.8,interpolation:'step',scaleSmoothing:0.205,grid:{sharpLines:true,millisPerLine:2000,verticalSections:6},labels:{fontSize:18},timestampFormatter:SmoothieChart.timeFormatter,minValue:0,maxValue:300,horizontalLines:[{color:'#ffffff',lineWidth:1,value:0},{color:'#880000',lineWidth:2,value:3333},{color:'#880000',lineWidth:2,value:-3333}]}
-
-//  var rttCharts = ['rtt-clu-neu', 'rtt-clu-bor', 'rtt-clu-lan']
-//  var atrCharts = ['atr-clu-neu', 'atr-clu-bor', 'atr-clu-lan']
-
-  var rttCharts = ['rtt-clu-neu']
-  var atrCharts = []
-//  var atrCharts = ['atr-clu-neu']
-
-  var socket = io()
-  var monitor = new AtrRttMonitor(rttCharts, atrCharts, socket, rttChartCfg,
-     atrChartCfg, lineCfg)
-  // Fetching ATR/RTT/ZK streams in a periodic way
-  //monitor.getStreams()
-})
 
 },{"./AtrRttMonitor.js":1,"its":6,"smoothie":8}],3:[function(require,module,exports){
 /**
