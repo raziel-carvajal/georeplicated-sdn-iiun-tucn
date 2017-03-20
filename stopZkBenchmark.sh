@@ -1,9 +1,9 @@
 #!/bin/bash - 
 #===============================================================================
 #
-#          FILE: copyAtController.sh
+#          FILE: stopZkBenchmark.sh
 # 
-#         USAGE: ./copyAtController.sh 
+#         USAGE: ./stopZkBenchmark.sh 
 # 
 #   DESCRIPTION: 
 # 
@@ -13,13 +13,19 @@
 #         NOTES: ---
 #        AUTHOR: Raziel Carvajal-Gomez (RCG), raziel.carvajal@unine.ch
 #  ORGANIZATION: 
-#       CREATED: 02/13/2017 01:27
+#       CREATED: 03/20/2017 00:32
 #      REVISION:  ---
 #===============================================================================
 
 set -o nounset                              # Treat unset variables as an error
 
-files="measure-rtt-atr.sh killIperfPingProc.sh mapNetTool linksNetTool deployZkServers.sh"
-files=${files}" startZkBenchmark.sh zkServers zkServers.backup stopZkServers.sh"
-files=${files}" runZkBenchPeriodically.sh stopZkBenchmark.sh"
-scp ${files} dionasys-controller:~/iiun-scripts/georeplicated-sdn-iiun-tucn
+if [ ${#} -lt 1 ] ; then
+  echo "USAGE: ${0} [site (clu, lan, bor or neu) where ZK is running]"
+  exit 1
+fi
+node=${1}
+
+echo "Halt ZK benchmark at node ${node}"
+ssh ${node}-ca "touch zk-smoketest-master/STOP"
+
+echo -e "DONE\nEND of ${0}"

@@ -1,9 +1,9 @@
 #!/bin/bash - 
 #===============================================================================
 #
-#          FILE: copyAtController.sh
+#          FILE: stopZkServers.sh
 # 
-#         USAGE: ./copyAtController.sh 
+#         USAGE: ./stopZkServers.sh 
 # 
 #   DESCRIPTION: 
 # 
@@ -13,13 +13,18 @@
 #         NOTES: ---
 #        AUTHOR: Raziel Carvajal-Gomez (RCG), raziel.carvajal@unine.ch
 #  ORGANIZATION: 
-#       CREATED: 02/13/2017 01:27
+#       CREATED: 03/19/2017 22:54
 #      REVISION:  ---
 #===============================================================================
 
 set -o nounset                              # Treat unset variables as an error
 
-files="measure-rtt-atr.sh killIperfPingProc.sh mapNetTool linksNetTool deployZkServers.sh"
-files=${files}" startZkBenchmark.sh zkServers zkServers.backup stopZkServers.sh"
-files=${files}" runZkBenchPeriodically.sh stopZkBenchmark.sh"
-scp ${files} dionasys-controller:~/iiun-scripts/georeplicated-sdn-iiun-tucn
+nodesNo=`cat zkServers | wc -l`
+for (( CNTR=1; CNTR<=${nodesNo}; CNTR+=1 )); do
+  line=`cat zkServers | head -${CNTR} | tail -1`
+  nodeId=`echo ${line} | awk '{print $1}'`
+  echo "Halt ZkServer on site: ${nodeId}"
+  ssh ${nodeId}-ca "cd zookeeper ; ./bin/zkServer.sh stop"
+  echo "DONE"
+done
+

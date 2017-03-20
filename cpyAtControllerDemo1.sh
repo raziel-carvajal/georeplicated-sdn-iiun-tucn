@@ -30,7 +30,8 @@ fSer=${fSer}"${dstSer}/do-rtt-streamer-test.sh "
 fSer=${fSer}"${dstSer}/emulate-rtt-stream.sh "
 fSer=${fSer}"${dstSer}/index.html "
 fSer=${fSer}"${dstSer}/package.json "
-fSer=${fSer}"${dstSer}/lib/NetMonitor.js "
+
 
 scp ${fSer} dionasys-controller:~/iiun-scripts/georeplicated-sdn-iiun-tucn/atr-owd-server
+scp "${dstSer}/lib/NetMonitor.js" dionasys-controller:~/iiun-scripts/georeplicated-sdn-iiun-tucn/atr-owd-server/lib
 #scp ${fCli} dionasys-controller:~/iiun-scripts/georeplicated-sdn-iiun-tucn/atr-owd-cli

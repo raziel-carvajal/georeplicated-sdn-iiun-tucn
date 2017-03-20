@@ -33,7 +33,7 @@ function RttStreamer (file, timeout, measureType) {
     this.err("At least one argument hasn't the appropiate type. Aborting...")
     return undefined
   }
-  var okMeasureType = measureType === 'rtt' || measureType === 'atr' || measureType === 'zk' ? true : false
+  var okMeasureType = measureType === 'rtt' || measureType === 'atr' || measureType === 'zk_r' || measureType === 'zk_w' ? true : false
   try {
     Its(okMeasureType)
   } catch (e) {
@@ -93,8 +93,11 @@ RttStreamer.prototype.parseLine = function (line) {
     case 'atr':
       l = this.parseAtrline(line)
     break
-    case 'zk':
-      this.log("Parse line for ZK to be completed...")
+    case 'zk_w':
+      l = this.parseZkline(line)
+    break
+    case 'zk_r':
+      l = this.parseZkline(line)
     break
     default:
       //XXX this case can't take place!
@@ -102,6 +105,28 @@ RttStreamer.prototype.parseLine = function (line) {
     break
   }
   return l
+}
+
+RttStreamer.prototype.parseZkline = function (line) {
+  try {
+    Its.defined(line)
+    var array = line.split(" ")
+    Its(array.length !== 1)
+  } catch (e) {
+    this.err("Current line doesn't contain any data")
+    return undefined
+  }
+  var ind =   parseInt(array[0])
+  var val = parseFloat(array[2])
+  try {
+    Its.number(ind)
+    Its.number(val)
+    //this.log("ZK: Current indx=%d && val=", ind, val)
+    return { 'indx': ind, 'val': val }
+  } catch (e) {
+    this.err("Pair: (" + ind + ", " + val + ") is not numeric")
+    return undefined  
+  }
 }
 
 RttStreamer.prototype.parseRttline = function (line) {
@@ -150,21 +175,15 @@ RttStreamer.prototype.parseAtrline = function (line) {
 
 RttStreamer.prototype.choseLine = function () {
   var l
-  switch (this._measureType) {
-    case 'rtt':
-      l = Sh.tail({ '-n': 1 }, this._src)
-    break
-    case 'atr':
-      l = Sh.tail({ '-n': 2 }, this._src).split("\n")[0]
-    break
-    case 'zk':
-      //TODO fill with ZK line format
-      //l = ?
-    break
-    default:
-    break
+  var r = this._measureType === 'atr' ? true : false
+  try {
+    Its(r)
+    l = Sh.tail({ '-n': 2 }, this._src).split("\n")[0]
+  } catch (e) {
+    l = Sh.tail({ '-n': 1 }, this._src)
+  } finally {
+    return l
   }
-  return l
 }
 
 
@@ -187,10 +206,10 @@ RttStreamer.prototype.start = function () {
     } catch (e) {
       self._failedTries++
       self.err("Fail [%d] while trying to read. Probably, source file is not being updated anymore", self._failedTries)
-      if (self._failedTries >= self._maxFails) {
-        self.log("Maximum numbers of tries to read source file was reached")
-        self.stop()
-      }
+//      if (self._failedTries >= self._maxFails) {
+//        self.log("Maximum numbers of tries to read source file was reached")
+//        self.stop()
+//      }
       return
     }
     self._buffId++
@@ -209,7 +228,7 @@ RttStreamer.prototype.readLatest = function () {
     this.err("WARNING: the latest line from source file is empty")
     return false
   }
-  this.log("Fetch chunk from lines %d to %d", this._latr, map.indx)
+  this.log("CHUNK from lines %d to %d", this._latr, map.indx)
   var linesToRead = map.indx - this._latr
   if (linesToRead <= 0) {
     this.log("WARNING: any new line was found")

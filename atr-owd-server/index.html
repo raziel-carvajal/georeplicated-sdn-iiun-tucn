@@ -29,12 +29,19 @@
 
         var atrChartCfg = {millisPerPixel:42,maxValueScale:0.8,interpolation:'step',scaleSmoothing:0.205,grid:{sharpLines:true,millisPerLine:2000,verticalSections:6},labels:{fontSize:18},timestampFormatter:SmoothieChart.timeFormatter,minValue:0,maxValue:100,horizontalLines:[{color:'#ffffff',lineWidth:1,value:0},{color:'#880000',lineWidth:2,value:3333},{color:'#880000',lineWidth:2,value:-3333}]}
 
+        var zkReChartCfg = {millisPerPixel:42,maxValueScale:0.8,interpolation:'step',scaleSmoothing:0.205,grid:{sharpLines:true,millisPerLine:2000,verticalSections:6},labels:{fontSize:18},timestampFormatter:SmoothieChart.timeFormatter,minValue:0,maxValue:100,horizontalLines:[{color:'#ffffff',lineWidth:1,value:0},{color:'#880000',lineWidth:2,value:3333},{color:'#880000',lineWidth:2,value:-3333}]}
+        
+        var zkWrChartCfg = {millisPerPixel:42,maxValueScale:0.8,interpolation:'step',scaleSmoothing:0.205,grid:{sharpLines:true,millisPerLine:2000,verticalSections:6},labels:{fontSize:18},timestampFormatter:SmoothieChart.timeFormatter,minValue:0,maxValue:300,horizontalLines:[{color:'#ffffff',lineWidth:1,value:0},{color:'#880000',lineWidth:2,value:3333},{color:'#880000',lineWidth:2,value:-3333}]}
+
+                
         var rttCharts = ['rtt-clu-neu', 'rtt-clu-bor', 'rtt-clu-lan']
         var atrCharts = ['atr-clu-neu', 'atr-clu-bor', 'atr-clu-lan']
+        var zkReCharts = ['zk-clu-lan-reads']
+        var zkWrCharts = ['zk-clu-lan-writes']
 
         var socket = io()
         var monitor = new AtrRttMonitor(rttCharts, atrCharts, socket, rttChartCfg,
-           atrChartCfg, lineCfg)
+           atrChartCfg, lineCfg, zkReCharts, zkWrCharts, zkReChartCfg, zkWrChartCfg)
         // Fetching ATR/RTT/ZK streams in a periodic way
         monitor.getStreams()
       })
@@ -42,6 +49,28 @@
   </head>
   <body>
     <div class="dataContainer">
+      <div class="column">
+        <label>Zookeeper writes in [ms] from LAN to CLU</label>
+        <br>
+        <canvas id="zk-clu-lan-writes" width="400" height="300"></canvas>
+      </div>
+      <div class="column">
+        <label>Zookeeper reads in [ms] from LAN to CLU</label>
+        <br>
+        <canvas id="zk-clu-lan-reads" width="400" height="300"></canvas>
+      </div>
+      <br><br>
+      <div class="column">
+        <label>RTT in [ms] of link: CLU-LAN</label>
+        <br>
+        <canvas id="rtt-clu-lan" width="400" height="300"></canvas>
+      </div>
+      <div class="column">
+        <label>ATR in [Mbits/s] of link: CLU-LAN</label>
+        <br>
+        <canvas id="atr-clu-lan" width="400" height="300"></canvas>
+      </div>
+      <br><br>
       <div class="column">
         <label>RTT in [ms] of link: CLU-NEU</label>
         <br>
@@ -62,18 +91,7 @@
         <label>ATR in [Mbits/s] of link: CLU-BOR</label>
         <br>
         <canvas id="atr-clu-bor" width="400" height="300"></canvas>
-      </div>
-      <br><br>
-      <div class="column">
-        <label>RTT in [ms] of link: CLU-LAN</label>
-        <br>
-        <canvas id="rtt-clu-lan" width="400" height="300"></canvas>
-      </div>
-      <div class="column">
-        <label>ATR in [Mbits/s] of link: CLU-LAN</label>
-        <br>
-        <canvas id="atr-clu-lan" width="400" height="300"></canvas>
-      </div>
+      </div>      
     </div>
   </body>
 </html>

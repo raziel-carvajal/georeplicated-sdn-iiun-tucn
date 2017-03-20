@@ -21,20 +21,26 @@ try {
   AtrOwdServer.prototype.err = require('debug')('AtrOwdServer:err')
 }
 
-function AtrOwdServer (port, webPage, rttStreams, atrStreams, readFreq) {
-  if (!(this instanceof AtrOwdServer)) return new AtrOwdServer(port, webPage, rttStreams, atrStreams, readFreq)
+function AtrOwdServer (port, webPage, rttStreams, atrStreams,
+  zkReStreams, zkWrStreams, readFreq) {
+  if (!(this instanceof AtrOwdServer)) return new AtrOwdServer(port, webPage,
+    rttStreams, atrStreams, zkReStreams, zkWrStreams, readFreq)
   try {
     Its.number(port)
     Its.string(webPage)
     Its.object(rttStreams)
     Its.object(atrStreams)
+    Its.object(zkReStreams)
+    Its.object(zkWrStreams)
     Its.number(readFreq)
   } catch (e) {
     this.err("At least one argument has a non expected type. Aborting...")
     return undefined
   }
   var rttKeys = Object.keys(rttStreams), atrKeys = Object.keys(atrStreams)
-  this._streamsNo = rttKeys.length === atrKeys.length ? rttKeys.length : Math.max(rttKeys.length, atrKeys.length)
+  var zkReKeys = Object.keys(zkReStreams)
+  var zkWrKeys = Object.keys(zkWrStreams)
+  this._streamsNo = Math.max(rttKeys.length, atrKeys.length, zkReKeys.length, zkWrKeys.length)
   this._webDst = webPage
   this._port = port
   this._app = Express()
@@ -43,7 +49,8 @@ function AtrOwdServer (port, webPage, rttStreams, atrStreams, readFreq) {
   this._io = SocketIO(this._http)
   this._rttStreams = {} ; this._rttReadsNo = {}
   this._atrStreams = {} ; this._atrReadsNo = {}
-  this._zkStreams = {}  ; this._zkReadsNo = {}
+  this._zkReStreams = {}  ; this._zkReNo  = {}
+  this._zkWrStreams = {}  ; this._zkWrNo = {}
   for (var i = 0; i < this._streamsNo; i++) {
     this.log("New RTT stream with key [%s]", rttKeys[i])
     this._rttReadsNo[ rttKeys[i] ] = 0
@@ -53,18 +60,15 @@ function AtrOwdServer (port, webPage, rttStreams, atrStreams, readFreq) {
     this._atrReadsNo[ atrKeys[i] ] = 0
     this._atrStreams[ atrKeys[i] ] = new RttStreamer(atrStreams[ atrKeys[i] ], readFreq, "atr")
     this.bootStream( this._atrStreams[ atrKeys[i] ], atrKeys[i] )
-
+    this.log("New ZkReads stream with key [%s]", zkReKeys[i])
+    this._zkReNo[ zkReKeys[i] ] = 0
+    this._zkReStreams[ zkReKeys[i] ] = new RttStreamer(zkReStreams[ zkReKeys[i] ], readFreq, "zk_r")
+    this.bootStream( this._zkReStreams[ zkReKeys[i] ], zkReKeys[i] )
+    this.log("New ZkWrites stream with key [%s]", zkWrKeys[i])
+    this._zkWrNo[ zkWrKeys[i] ] = 0
+    this._zkWrStreams[ zkWrKeys[i] ] = new RttStreamer(zkWrStreams[ zkWrKeys[i] ], readFreq, "zk_w")
+    this.bootStream( this._zkWrStreams[ zkWrKeys[i] ], zkWrKeys[i] )
   }
-  /*
-  //TODO do the same for ZK streams
-  var zkKeys = Object.keys(ZK_VAR)
-  for (var i = 0; i < zkKeys.length; i++) {
-    this.log("New ZK stream with key [%s"], zkKeys[i])
-    this._zkReadsNo[ zkKeys[i] ] = 0
-    this._zkStreams[ zkKeys[i] ] = new RttStreamer(ZK_VAR[ zkKeys[i] ], readFreq)
-    this.bootStream( this._zkStreams[ zkKeys[i] ], zkKeys[i] )
-  }
-  */
 }
 
 AtrOwdServer.prototype.bootStream = function (stream, streamId) {
@@ -118,7 +122,7 @@ AtrOwdServer.prototype.listen = function () {
         self.err("Undefined message was received in ZkHandler")
         return
       }
-      self.log("Handling request to get ZK stream")
+      self.log("Handling request to get ZK-read stream")
       self.streamsHandler(msg, 'get-zk')
     })
   })
@@ -135,19 +139,14 @@ AtrOwdServer.prototype.streamsHandler = function (msg, eventId) {
       eventAnswId = 'rtt-answer'
       stream = this._rttStreams
       streamNo = this._rttReadsNo
-      measureType = 'rtt'
     break
     case 'get-atr':
       eventAnswId = 'atr-answer'
       stream = this._atrStreams
       streamNo = this._atrReadsNo
-      measureType = 'atr'
     break
     case  'get-zk':
       eventAnswId = 'zk-answer'
-      stream = this._zkStreams
-      streamNo = this._zkReadsNo
-      measureType = 'zk'
     break
     default:
       this.err("This call shouldn't take place")
@@ -162,6 +161,17 @@ AtrOwdServer.prototype.streamsHandler = function (msg, eventId) {
     this._io.emit(eventAnswId, koMsg) ; return
   }
   try {
+    if (eventAnswId === 'zk-answer') {
+      var arr = streamId.split("-")
+      if (arr[arr.length - 1] === 'reads') {
+        stream = this._zkReStreams
+        streamNo = this._zkReNo
+      } else {
+        stream = this._zkWrStreams
+        streamNo = this._zkWrNo      
+      }     
+    }
+
     Its.defined( stream[streamId] )
     Its.number( streamNo[streamId] )
     var payload = this.getStream(stream[streamId], streamId, streamNo)

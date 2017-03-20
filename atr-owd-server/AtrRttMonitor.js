@@ -15,15 +15,17 @@ try {
 }
 
 function AtrRttMonitor (rttCharts, atrCharts, socket, rttChartCfg, 
-  atrChartCfg, lineCfg) {
+  atrChartCfg, lineCfg, zkReCharts, zkWrCharts, zkReChartCfg, zkWrChartCfg) {
   if (!(this instanceof AtrRttMonitor)) {
     return new AtrRttMonitor(rttCharts, atrCharts, socket, rttChartCfg,
-     atrChartCfg, lineCfg)
+     atrChartCfg, lineCfg, zkReCharts, zkWrCharts, zkReChartCfg, zkWrChartCfg)
   }
   this.log("new AtrRttMonitor()")
   try {
     Its.array(rttCharts)
     Its.array(atrCharts)
+    Its.array(zkReCharts)
+    Its.array(zkWrCharts)
     Its.defined(socket)
     Its.defined(rttChartCfg)
     Its.defined(atrChartCfg)
@@ -32,18 +34,21 @@ function AtrRttMonitor (rttCharts, atrCharts, socket, rttChartCfg,
     this.err("At least one argument is undefined. Aborting...")
     return undefined
   }
-  this._timeout = 3
+  this._timeout = 5
   this._rttCharts = rttCharts
   this._atrCharts = atrCharts
-  var maX = Math.max(rttCharts.length, atrCharts.length)
-  this._chartsLen = rttCharts.length === atrCharts.length ? rttCharts.length : maX
+  this._zkReCharts = zkReCharts
+  this._zkWrCharts = zkWrCharts
+  this._chartsLen = Math.max(rttCharts.length, atrCharts.length, zkReCharts.length, zkWrCharts.length)
+  this.log("MAX: " + this._chartsLen)
   this._socket = socket
   this._measureTypes = ['rtt', 'atr', 'zk']
   this._go = {}, this._threads = {}, this._tsPerChart = {}, this._charts = {}
   var set = undefined
   for (var i = 0; i < this._chartsLen; i++) {
     for (var j = 0; j < this._measureTypes.length; j++) {
-      set = this.setAttributes(i, atrChartCfg, rttChartCfg, lineCfg, this._measureTypes[j])
+      set = this.setAttributes(i, zkReChartCfg, zkWrChartCfg, atrChartCfg,
+        rttChartCfg, lineCfg, this._measureTypes[j])
       try {
         Its(set)
       } catch (e) {
@@ -68,7 +73,7 @@ AtrRttMonitor.prototype.setEvents = function () {
 }
 
 AtrRttMonitor.prototype.setAttributes = function (i, 
-  atrChartCfg, rttChartCfg, lineCfg, dataId) {
+  zkReChartCfg, zkWrChartCfg, atrChartCfg, rttChartCfg, lineCfg, dataId) {
   switch (dataId) {
     // ATR
     case "atr":
@@ -98,10 +103,33 @@ AtrRttMonitor.prototype.setAttributes = function (i,
       this._go[ this._rttCharts[i] ] = true
       this._threads[ this._rttCharts[i] ] = undefined 
     break
-    // ZK
+    // ZK writes
     case "zk":
-      this.log("ZK case to be filled...")
-    break
+      if (typeof(this._zkReCharts[i]) !== 'undefined') {
+        this._tsPerChart[ this._zkReCharts[i] ] = new window.TimeSeries()
+        this._charts[ this._zkReCharts[i] ] = new SmoothieChart(zkReChartCfg)
+        this._charts[ this._zkReCharts[i] ].addTimeSeries (
+          this._tsPerChart[ this._zkReCharts[i] ], lineCfg
+        )
+        var rttCnvs = document.getElementById(this._zkReCharts[i])
+        this._charts[ this._zkReCharts[i] ].streamTo(rttCnvs, 325) 
+        this.log("SetAttrs for: " + this._zkReCharts[i])
+        this._go[ this._zkReCharts[i] ] = true
+        this._threads[ this._zkReCharts[i] ] = undefined 
+      }
+
+      if (typeof(this._zkWrCharts[i]) !== 'undefined') {            
+        this._tsPerChart[ this._zkWrCharts[i] ] = new window.TimeSeries()
+        this._charts[ this._zkWrCharts[i] ] = new SmoothieChart(zkWrChartCfg)
+        this._charts[ this._zkWrCharts[i] ].addTimeSeries (
+          this._tsPerChart[ this._zkWrCharts[i] ], lineCfg
+        )
+        var rttCnvs = document.getElementById(this._zkWrCharts[i])
+        this._charts[ this._zkWrCharts[i] ].streamTo(rttCnvs, 325) 
+        this.log("SetAttrs for: " + this._zkWrCharts[i])
+        this._go[ this._zkWrCharts[i] ] = true
+        this._threads[ this._zkWrCharts[i] ] = undefined
+      }
     default:
       this.err("Option ["+i+"] isn't recognized to set attributes")
     break
@@ -124,23 +152,17 @@ AtrRttMonitor.prototype.appendInTimeSeries = function (okPayl, streamId) {
 }
 
 AtrRttMonitor.prototype.fillTimeSeries = function (streamId, okPayl) {
-  var dataId = streamId.split("-")[0]
-  switch (dataId) {
-    case "rtt":
-      this.appendInTimeSeries(okPayl, streamId)
-    break
-    case "atr":
-      this.appendInTimeSeries(okPayl, streamId)
-     break
-    case "zk":
-      this.log("TODO: Fill TimeSeries of ZK dataset")
-    break
-    default:
-      this.err("Dataset [" + dataId + "] will be ignored")
-      return false
-    break
+  var id = streamId.split("-")[0]
+  this.log("ID: " + id)
+  var r = id === "rtt" || id === "atr" || id === "zk" ? true : false
+  try {
+    Its(r)
+    this.appendInTimeSeries(okPayl, streamId)
+  } catch (e) {
+    this.err("Dataset [" + streamId + "] will be ignored")  
+  } finally {
+    return r
   }
-  return true
 }
 
 AtrRttMonitor.prototype.handleMsgReception = function (msg) {
@@ -152,6 +174,7 @@ AtrRttMonitor.prototype.handleMsgReception = function (msg) {
     try {
       this.log("FILE: " + dataId)
       Its(this._go[ dataId ])
+      this._go[dataId] = false
       var resu = this.fillTimeSeries(dataId, okPayl)
       try {
         Its(resu)
@@ -184,19 +207,9 @@ AtrRttMonitor.prototype.doRequest = function (streamId) {
       header: 'get-' + dataId,
       payload: { 'streamId': undefined }
     }
-    switch (dataId) {
-      case "rtt":
-        msg.payload.streamId = streamId
-      break
-      case "atr":
-        msg.payload.streamId = streamId
-      break
-      case "zk":
-        this.log("Set request ot get ZK stream")
-      break
-      default:
-      break
-    }
+    this.log("HEADER: " + msg.header)
+    var r = dataId === "rtt" || dataId === "atr" || dataId === "zk" ? streamId : undefined
+    msg.payload['streamId'] = r
     this._socket.emit(msg.header, msg) 
   } else {
     this.log("Still waiting for Go[" + streamId + "] to be true")

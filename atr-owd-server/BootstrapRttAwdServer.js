@@ -12,5 +12,13 @@ var atrStreams = {
   'atr-clu-lan': '../datasets/atr-clu-lan'
 }
 
-var server = new AtrOwdServer(3001, "index.html", rttStreams, atrStreams, 5)
+var zkReStreams = {
+  'zk-clu-lan-reads': '../datasets/zk-clu-lan-reads'
+}
+
+var zkWrStreams = {
+  'zk-clu-lan-writes': '../datasets/zk-clu-lan-writes'
+}
+
+var server = new AtrOwdServer(3001, "index.html", rttStreams, atrStreams, zkReStreams, zkWrStreams, 7)
 server.listen()

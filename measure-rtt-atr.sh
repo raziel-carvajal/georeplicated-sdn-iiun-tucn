@@ -57,12 +57,30 @@ for (( CNTR=1; CNTR<=${nodesNo}; CNTR+=1 )); do
   done
 done
 
+echo "Deploying Zookeeper Servers..."
+#./deployZkServers.sh
+echo "DONE"
+#TODO CHECK THIS!!!
+zkCli="bor"
+echo "Start Zookeeper benchmark..."
+./startZkBenchmark.sh ${zkCli}
+echo "DONE"
+
 echo "Waiting for STOP signal to end with ATR/RTT measurements" ; j=1
 while [ ! -f 'STOP' ] ; do
-  echo -e "\tUpdating ATR/RTT datasets [${j}]"
   for (( CNTR=1; CNTR<=${nodesNo}; CNTR+=1 )); do
     line=`cat mapNetTool | head -${CNTR} | tail -1`
     nodeId=`echo ${line} | awk '{print $1}'`
+    echo -e "\tUpdating Zookeeper dataset [${j}]"
+    if [ ${nodeId} == ${zkCli} ] ; then
+      zkF="zk-clu-lan"
+      ssh ${nodeId}-ca "cat ${zkF}" >datasets/zk-tmp.log
+      grep "READ" datasets/zk-tmp.log >datasets/zk-tmp-reads.log
+      grep "WRIT" datasets/zk-tmp.log >datasets/zk-tmp-writes.log
+      mv datasets/zk-tmp-reads.log  datasets/${zkF}-reads
+      mv datasets/zk-tmp-writes.log datasets/${zkF}-writes
+    fi
+    echo -e "\tUpdating ATR/RTT datasets [${j}]"
     links="${nodeId}-links.dat" #file created in previous loop
     endPoints=`cat ${links} | wc -l`
     for (( i=1; i<=${endPoints}; i+=1 )); do
@@ -81,5 +99,8 @@ done
 echo "DONE"
 
 ./killIperfPingProc.sh
+echo "Halt Zookeeper benchmark..."
+./stopZkBenchmark.sh ${zkCli}
+echo "DONE"
 
 echo "END of script ${0}"
