@@ -5,22 +5,53 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"> 
     <meta http-equiv="Content-Language" content="en-us">
     <style>
-      .dataContainer {
-        position: relative;
-        width: 1050px;
-        margin: 0 auto;
-        padding: 0;
-      }
-      .column {
-        width: 500px;
-        float: left;
-        display: inline;
-        margin-left: 10px;
-        margin-right: 10px;
-      }
+        .canvasSizeL { 
+            width: 700px;
+            height: 300px;
+            display: inline;
+            float: left;
+        }
+        .canvasSizeR { 
+            width: 700px;
+            height: 300px;
+            display: inline;
+            float: right;
+        }
+        .headerSize { width: 1500px; }
+        .bannerSizeL { 
+            width:  700px; 
+            display: inline;
+            float: left;
+        }
+        .bannerSizeR { 
+            width:  700px; 
+            display: inline;
+            float: right;
+        }
+        .headerContainer{
+            position: relative;
+            width: 1500px;
+            margin: 0 auto;
+            padding: 0;
+        }
+        .dataContainer {
+          position: relative;
+          width: 1500px;
+          margin: 0 auto;
+          padding: 0;
+        }
+        .column {
+          width: 740px;
+          float: left;
+          display: inline;
+          margin-left: 10px;
+          margin-right: 10px;
+        }
     </style>
+    <!--
     <script src="/socket.io/socket.io.js"></script>
     <script src="/lib/NetMonitor.js"></script>
+
     <script>
       document.addEventListener('DOMContentLoaded', function (event) {
         var lineCfg = {lineWidth:2,strokeStyle:'#19ff00'}
@@ -46,52 +77,50 @@
         monitor.getStreams()
       })
     </script>
+     -->
   </head>
   <body>
+      <div class="headerContainer">
+        <center>
+            <img src="imgs/header.png" class="headerSize"/>
+        </center>
+        <br><br>
+        <center>
+            <img src="imgs/zkHeader.png" class="headerSize"/>
+        </center>
+     </div>
     <div class="dataContainer">
-      <div class="column">
-        <label>Zookeeper writes in [ms] from LAN to CLU</label>
-        <br>
-        <canvas id="zk-clu-lan-writes" width="400" height="300"></canvas>
-      </div>
-      <div class="column">
-        <label>Zookeeper reads in [ms] from LAN to CLU</label>
-        <br>
-        <canvas id="zk-clu-lan-reads" width="400" height="300"></canvas>
-      </div>
-      <br><br>
-      <div class="column">
-        <label>RTT in [ms] of link: CLU-LAN</label>
-        <br>
-        <canvas id="rtt-clu-lan" width="400" height="300"></canvas>
-      </div>
-      <div class="column">
-        <label>ATR in [Mbits/s] of link: CLU-LAN</label>
-        <br>
-        <canvas id="atr-clu-lan" width="400" height="300"></canvas>
-      </div>
-      <br><br>
-      <div class="column">
-        <label>RTT in [ms] of link: CLU-NEU</label>
-        <br>
-        <canvas id="rtt-clu-neu" width="400" height="300"></canvas>
-      </div>
-      <div class="column">
-        <label>ATR in [Mbits/s] of link: CLU-NEU</label>
-        <br>
-        <canvas id="atr-clu-neu" width="400" height="300"></canvas>
-      </div>
-      <br><br>
-      <div class="column">
-        <label>RTT in [ms] of link: CLU-BOR</label>
-        <br>
-        <canvas id="rtt-clu-bor" width="400" height="300"></canvas>
-      </div>
-      <div class="column">
-        <label>ATR in [Mbits/s] of link: CLU-BOR</label>
-        <br>
-        <canvas id="atr-clu-bor" width="400" height="300"></canvas>
-      </div>      
+      <img src="imgs/zkW.png" class="bannerSizeL"/>
+      <img src="imgs/zkR.png" class="bannerSizeR"/>
+      <canvas id="zk-clu-lan-writes"></canvas> 
+      <canvas id="zk-clu-lan-reads" ></canvas> 
+    </div>
+    <center>
+        <img src="imgs/zkExplanation.png" class="headerSize"/>
+    </center>
+    <br><br>
+    <center>
+        <img src="imgs/rttAtrHeader.png" class="headerSize"/>
+    </center>
+    <div class="dataContainer">
+      <img src="imgs/rttCluLan.png" class="bannerSizeL"/>
+      <img src="imgs/atrCluLan.png" class="bannerSizeR"/>
+      <canvas id="rtt-clu-lan" ></canvas> 
+      <canvas id="atr-clu-lan" ></canvas> 
+    </div>
+    <br><br>
+    <div class="dataContainer">
+      <img src="imgs/rttCluBor.png" class="bannerSizeL"/>
+      <img src="imgs/atrCluBor.png" class="bannerSizeR"/>
+      <canvas id="rtt-clu-bor" /></canvas>
+      <canvas id="atr-clu-bor" /></canvas>
+    </div>
+    <br><br>
+    <div class="dataContainer">
+      <img src="imgs/rttCluNeu.png" class="bannerSizeL"/>
+      <img src="imgs/atrCluNeu.png" class="bannerSizeR"/>
+      <canvas id="rtt-clu-neu" /></canvas>
+      <canvas id="atr-clu-neu" /></canvas>
     </div>
   </body>
 </html>
